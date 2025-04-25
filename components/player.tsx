@@ -8,64 +8,39 @@ import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX } from "lucide-rea
 import { useSpotify } from "@/context/spotify-context"
 
 export default function Player() {
-  const { currentTrack, isPlaying, togglePlayback, skipToNext, skipToPrevious } = useSpotify()
-  const [volume, setVolume] = useState(50)
-  const [progress, setProgress] = useState(0)
-  const [duration, setDuration] = useState(0)
-  const [isMuted, setIsMuted] = useState(false)
-  const previousVolume = useState(50)
+  const {
+    currentTrack,
+    isPlaying,
+    togglePlayback,
+    skipToNext,
+    skipToPrevious,
+    setVolume,
+    setMute,
+    seekTo,
+    volume,
+    isMuted,
+    position,
+    duration
+  } = useSpotify()
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (isPlaying && duration > 0) {
-        setProgress((prev) => {
-          if (prev >= duration) {
-            return 0
-          }
-          return prev + 1
-        })
-      }
-    }, 1000)
-
-    return () => clearInterval(interval)
-  }, [isPlaying, duration])
-
-  useEffect(() => {
-    if (currentTrack) {
-      setDuration(currentTrack.duration_ms / 1000)
-      setProgress(0)
-    }
-  }, [currentTrack])
-
-  const formatTime = (seconds) => {
+  const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
     const secs = Math.floor(seconds % 60)
     return `${mins}:${secs.toString().padStart(2, "0")}`
   }
 
-  const handleVolumeChange = (value) => {
+  const handleVolumeChange = (value: number[]) => {
     const newVolume = value[0]
     setVolume(newVolume)
-    setIsMuted(newVolume === 0)
-    // Here you would also call the Spotify API to change volume
   }
 
   const toggleMute = () => {
-    if (isMuted) {
-      setVolume(previousVolume.current)
-      setIsMuted(false)
-    } else {
-      previousVolume.current = volume
-      setVolume(0)
-      setIsMuted(true)
-    }
-    // Here you would also call the Spotify API to mute/unmute
+    setMute(!isMuted)
   }
 
-  const handleProgressChange = (value) => {
+  const handleProgressChange = (value: number[]) => {
     const newProgress = value[0]
-    setProgress(newProgress)
-    // Here you would also call the Spotify API to seek to position
+    seekTo(newProgress)
   }
 
   if (!currentTrack) {
@@ -108,9 +83,9 @@ export default function Player() {
           </Button>
         </div>
         <div className="flex items-center gap-2 w-full">
-          <div className="text-xs text-zinc-400 w-10 text-right">{formatTime(progress)}</div>
+          <div className="text-xs text-zinc-400 w-10 text-right">{formatTime(position)}</div>
           <Slider
-            value={[progress]}
+            value={[position]}
             max={duration}
             step={1}
             onValueChange={handleProgressChange}

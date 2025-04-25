@@ -179,7 +179,7 @@ export default function Dashboard() {
 
         <div className="flex flex-1 overflow-hidden">
           {/* Sidebar */}
-          <div className="w-64 bg-zinc-950 p-4 hidden md:block">
+          <div className="w-64 bg-zinc-950 p-4 hidden md:block relative">
             <div className="flex items-center mb-8">
               <Music2 className="h-8 w-8 text-green-500 mr-2" />
               <h1 className="text-xl font-bold">Spotify Client</h1>
@@ -212,10 +212,8 @@ export default function Dashboard() {
                 </Button>
               </div>
             </nav>
-            <div className="absolute bottom-24 left-4 right-4">
+            <div className="absolute bottom-4 left-4 right-4 gap-2 flex flex-col">
               <UserProfile />
-            </div>
-            <div className="absolute bottom-4 left-4 right-4">
               <Button
                 variant="ghost"
                 className="w-full justify-start text-zinc-400 hover:text-white"
