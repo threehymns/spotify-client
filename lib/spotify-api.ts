@@ -5,7 +5,7 @@ import { getAccessToken, getCredentials } from "@/lib/auth-helpers"
 const BASE_URL = "https://api.spotify.com/v1"
 
 // Helper function to make authenticated API requests
-async function spotifyFetch(endpoint: string, options: RequestInit = {}) {
+export async function spotifyFetch(endpoint: string, options: RequestInit = {}) {
   console.log(`Making Spotify API request to: ${endpoint}`)
 
   const accessToken = await getAccessToken()
@@ -28,7 +28,12 @@ async function spotifyFetch(endpoint: string, options: RequestInit = {}) {
     })
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: "Unknown error" }))
+      // Only try to parse error body as JSON if present
+      let errorData = { error: "Unknown error" };
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+      }
       console.error("Spotify API error:", errorData)
 
       // Check for specific error types
@@ -45,9 +50,22 @@ async function spotifyFetch(endpoint: string, options: RequestInit = {}) {
       throw new Error(errorData.error?.message || "Failed to fetch from Spotify API")
     }
 
-    const data = await response.json()
-    console.log(`Spotify API request to ${endpoint} successful`)
-    return data
+    // Only parse JSON if there is content
+    if (response.status === 204) {
+      // No Content
+      console.log(`Spotify API request to ${endpoint} successful (204 No Content)`)
+      return null;
+    }
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      const data = await response.json();
+      console.log(`Spotify API request to ${endpoint} successful`)
+      return data;
+    } else {
+      // No JSON body
+      console.log(`Spotify API request to ${endpoint} successful (no JSON body)`)
+      return null;
+    }
   } catch (error) {
     console.error(`Spotify API request to ${endpoint} failed:`, error)
     throw error

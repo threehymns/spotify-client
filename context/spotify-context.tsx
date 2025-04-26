@@ -1,7 +1,8 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from "react"
 import { getAccessToken } from "@/lib/auth-helpers"
+import { spotifyFetch } from "@/lib/spotify-api"
 
 type SpotifyContextType = {
   currentTrack: any
@@ -10,7 +11,6 @@ type SpotifyContextType = {
   togglePlayback: () => void
   skipToNext: () => void
   skipToPrevious: () => void
-  addToPlaylist: (track: any) => void
   setVolume: (volume: number) => void
   setMute: (mute: boolean) => void
   seekTo: (position: number) => void
@@ -33,6 +33,8 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
   const [isMuted, setIsMuted] = useState(false)
   const [position, setPosition] = useState(0)
   const [duration, setDuration] = useState(0)
+  // Flag to ensure initial sync workaround runs only once
+  const initialSyncDone = useRef(false)
 
   // Progress bar update interval
   useEffect(() => {
@@ -95,21 +97,37 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
             // Playback status updates
             player.addListener("player_state_changed", (state) => {
               if (state) {
-                setCurrentTrack(state.track_window.current_track)
-                setIsPlaying(!state.paused)
-                setPosition(state.position / 1000)
-                setDuration(state.duration / 1000)
-                setVolumeState(state.volume_percent)
-                setIsMuted(state.volume_percent === 0)
+                const currentState = state as any; // Type assertion
+                setCurrentTrack(currentState.track_window.current_track)
+                setIsPlaying(!currentState.paused)
+                setPosition(currentState.position / 1000)
+                setDuration(currentState.duration / 1000)
+                setVolumeState(currentState.volume_percent)
+                setIsMuted(currentState.volume_percent === 0)
               }
             })
 
             // Ready
-            player.addListener("ready", ({ device_id }) => {
+            player.addListener("ready", async ({ device_id }) => {
               console.log("Ready with Device ID", device_id)
               setPlayer(player)
               setDeviceId(device_id)
               setIsReady(true)
+
+              // Initial sync: get current state from SDK
+              try {
+                const state = await player.getCurrentState();
+                if (state) {
+                  setCurrentTrack(state.track_window.current_track);
+                  setIsPlaying(!state.paused);
+                  setPosition(state.position / 1000);
+                  setDuration(state.duration / 1000);
+                  setVolumeState(state.volume_percent);
+                  setIsMuted(state.volume_percent === 0);
+                }
+              } catch (err) {
+                // Ignore
+              }
             })
 
             // Connect to the player
@@ -131,32 +149,52 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const playTrack = async (uri: string) => {
-    if (!player || !isReady || !accessToken || !deviceId) return
+    if (!player || !isReady || !deviceId) return
     try {
-      await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${deviceId}`,
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            uris: [uri],
-          }),
-        }
-      )
+      // 1. Transfer playback to this device
+      await spotifyFetch(`/me/player`, {
+        method: "PUT",
+        body: JSON.stringify({ device_ids: [deviceId], play: false }),
+      });
+      // 2. Play the track
+      await spotifyFetch(`/me/player/play?device_id=${deviceId}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          uris: [uri],
+        }),
+      })
+      // 3. Initial workaround: sync state and force SDK event only once
+      if (!initialSyncDone.current) {
+        setTimeout(async () => {
+          if (player && isReady) {
+            const state = await player.getCurrentState();
+            if (state) {
+              setCurrentTrack(state.track_window.current_track);
+              setIsPlaying(!state.paused);
+              setPosition(state.position / 1000);
+              setDuration(state.duration / 1000);
+              setVolumeState(state.volume_percent);
+              setIsMuted(state.volume_percent === 0);
+              // Force SDK to emit player_state_changed
+              player.seek(0);
+              initialSyncDone.current = true
+            }
+          }
+        }, 500);
+      }
     } catch (error) {
       console.error("Failed to play track:", error)
     }
   }
 
-  const togglePlayback = () => {
+  const togglePlayback = async () => {
     if (!player || !isReady) return
     if (isPlaying) {
-      player.pause()
+      player.pause();
     } else {
-      player.resume()
+      player.resume();
     }
+    // No re-fetch needed; SDK event will update state
   }
 
   // Set volume (0-100)
@@ -193,19 +231,16 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
 
   const skipToNext = () => {
     if (!player || !isReady) return
-    player.nextTrack()
+    player.nextTrack();
+    // No re-fetch needed; SDK event will update state
   }
 
   const skipToPrevious = () => {
     if (!player || !isReady) return
-    player.previousTrack()
+    player.previousTrack();
+    // No re-fetch needed; SDK event will update state
   }
 
-  const addToPlaylist = async (track: any) => {
-    // This would open a dialog to select which playlist to add the track to
-    console.log("Add to playlist:", track)
-    // Implementation would depend on your UI for playlist selection
-  }
 
   return (
     <SpotifyContext.Provider
@@ -216,7 +251,6 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
         togglePlayback,
         skipToNext,
         skipToPrevious,
-        addToPlaylist,
         setVolume,
         setMute,
         seekTo,
