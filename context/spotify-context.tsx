@@ -8,6 +8,7 @@ type SpotifyContextType = {
   currentTrack: any
   isPlaying: boolean
   playTrack: (uri: string) => void
+  playUri: (uri: string) => void
   togglePlayback: () => void
   skipToNext: () => void
   skipToPrevious: () => void
@@ -71,7 +72,7 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
 
           window.onSpotifyWebPlaybackSDKReady = () => {
             const player = new window.Spotify.Player({
-              name: "Spotify Client Web Player",
+              name: "Pulse Web Player",
               getOAuthToken: (cb) => {
                 cb(token)
               },
@@ -187,6 +188,56 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  // Play a URI (track, album, or playlist)
+  const playUri = async (uri: string) => {
+    if (!player || !isReady || !deviceId) return
+    try {
+      // 1. Transfer playback to this device
+      await spotifyFetch(`/me/player`, {
+        method: "PUT",
+        body: JSON.stringify({ device_ids: [deviceId], play: false }),
+      });
+      // 2. Play context or track
+      let body: any = {}
+      if (uri.startsWith("spotify:track:")) {
+        body.uris = [uri]
+      } else if (uri.startsWith("spotify:album:") || uri.startsWith("spotify:playlist:")) {
+        body.context_uri = uri
+      } else if (uri.startsWith("spotify:artist:")) {
+        // Play artist radio (top tracks/shuffle)
+        body.context_uri = uri
+        body.shuffle = true // Optional: let Spotify shuffle artist radio
+      } else {
+        console.error("Unsupported URI type for playUri:", uri)
+        return
+      }
+      await spotifyFetch(`/me/player/play?device_id=${deviceId}`, {
+        method: "PUT",
+        body: JSON.stringify(body),
+      })
+      // 3. Initial workaround: sync state and force SDK event only once
+      if (!initialSyncDone.current) {
+        setTimeout(async () => {
+          if (player && isReady) {
+            const state = await player.getCurrentState();
+            if (state) {
+              setCurrentTrack(state.track_window.current_track);
+              setIsPlaying(!state.paused);
+              setPosition(state.position / 1000);
+              setDuration(state.duration / 1000);
+              setVolumeState(state.volume_percent);
+              setIsMuted(state.volume_percent === 0);
+              player.seek(0);
+              initialSyncDone.current = true
+            }
+          }
+        }, 500);
+      }
+    } catch (error) {
+      console.error("Failed to play URI:", error)
+    }
+  }
+
   const togglePlayback = async () => {
     if (!player || !isReady) return
     if (isPlaying) {
@@ -196,6 +247,26 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
     }
     // No re-fetch needed; SDK event will update state
   }
+
+  // Global spacebar play/pause shortcut
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === " " || e.code === "Space") {
+        const active = document.activeElement;
+        const isInput = active && (
+          active.tagName === "INPUT" ||
+          active.tagName === "TEXTAREA" ||
+          (active as HTMLElement).isContentEditable
+        );
+        if (!isInput) {
+          e.preventDefault();
+          togglePlayback();
+        }
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [togglePlayback]);
 
   // Set volume (0-100)
   const setVolume = (vol: number) => {
@@ -248,6 +319,7 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
         currentTrack,
         isPlaying,
         playTrack,
+        playUri,
         togglePlayback,
         skipToNext,
         skipToPrevious,

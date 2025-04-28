@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Loading from "@/components/loading";
 import { useRouter } from "next/navigation"
 
 export default function AuthSuccessPage() {
@@ -26,15 +27,15 @@ export default function AuthSuccessPage() {
         // Store tokens directly in localStorage
         localStorage.setItem("spotify_access_token", accessToken);
         localStorage.setItem("spotify_refresh_token", refreshToken);
-        // Calculate expiry time (1 hour from now)
-        const expiresAt = Date.now() + 3600 * 1000;
+        // Calculate expiry time (60 hours from now)
+        const expiresAt = Date.now() + 3600 * 1000 * 60;
         localStorage.setItem("spotify_token_expires_at", expiresAt.toString());
         console.log("Tokens stored in localStorage");
         setStatus("Authentication successful! Redirecting...");
-        // Redirect to dashboard after a short delay
+        // Redirect to home after a short delay
         setTimeout(() => {
-          router.push("/dashboard");
-        }, 1500);
+          router.push("/");
+        }, 0);
       } catch (error) {
         console.error("Error in auth success page:", error)
         setStatus("Authentication error. Please try again.")
@@ -49,10 +50,8 @@ export default function AuthSuccessPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-black">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500 mx-auto mb-4"></div>
-        <h1 className="text-xl text-white font-medium">Authentication in progress</h1>
-        <p className="text-zinc-400 mt-2">{status}</p>
+      <div className="text-center w-full">
+        <Loading text={status || "Authentication in progress"} />
       </div>
     </div>
   )

@@ -10,6 +10,7 @@ import { Play, Plus, Trash2 } from "lucide-react"
 import { useSpotify } from "@/context/spotify-context"
 import { getUserPlaylists, createPlaylist, getPlaylistTracks, removeTrackFromPlaylist } from "@/lib/spotify-api"
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd"
+import SongListing from "@/components/song-listing"
 
 export default function PlaylistView() {
   const { playTrack } = useSpotify()
@@ -187,56 +188,17 @@ export default function PlaylistView() {
               ) : playlistTracks.length === 0 ? (
                 <div className="text-center py-12 text-zinc-400">This playlist is empty. Add some tracks!</div>
               ) : (
-                <DragDropContext onDragEnd={handleDragEnd}>
-                  <Droppable droppableId="playlist-tracks">
-                    {(provided) => (
-                      <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-2">
-                        {playlistTracks.map((item, index) => (
-                          <Draggable key={item.track.id} draggableId={item.track.id} index={index}>
-                            {(provided) => (
-                              <div
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                                {...provided.dragHandleProps}
-                                className="bg-zinc-800/50 hover:bg-zinc-700/50 rounded-md p-2 transition-colors"
-                              >
-                                <div className="flex items-center">
-                                  <div className="relative h-10 w-10 mr-3 flex-shrink-0">
-                                    <Image
-                                      src={item.track.album.images[0]?.url || "/placeholder.svg?height=40&width=40"}
-                                      alt={item.track.album.name}
-                                      fill
-                                      className="object-cover rounded"
-                                    />
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <div className="font-medium truncate">{item.track.name}</div>
-                                    <div className="text-xs text-zinc-400 truncate">
-                                      {item.track.artists.map((a) => a.name).join(", ")}
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-2 ml-4">
-                                    <Button size="icon" variant="ghost" onClick={() => playTrack(item.track.uri)}>
-                                      <Play className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                      size="icon"
-                                      variant="ghost"
-                                      onClick={() => handleRemoveTrack(item.track.uri, index)}
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                          </Draggable>
-                        ))}
-                        {provided.placeholder}
-                      </div>
-                    )}
-                  </Droppable>
-                </DragDropContext>
+                <div className="space-y-2">
+                  <SongListing
+                    tracks={playlistTracks.map((item) => ({
+                      id: item.track.id,
+                      name: item.track.name,
+                      uri: item.track.uri,
+                      artists: item.track.artists,
+                      album: item.track.album,
+                    }))}
+                  />
+                </div>
               )}
             </CardContent>
           </Card>

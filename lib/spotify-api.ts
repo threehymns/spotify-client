@@ -119,6 +119,11 @@ export async function getPlaylistTracks(playlistId: string) {
   return spotifyFetch(`/playlists/${playlistId}/tracks`)
 }
 
+// Get a playlist by ID
+export async function getPlaylist(playlistId: string) {
+  return spotifyFetch(`/playlists/${playlistId}`);
+}
+
 // Add tracks to a playlist
 export async function addTracksToPlaylist(playlistId: string, uris: string[]) {
   return spotifyFetch(`/playlists/${playlistId}/tracks`, {
@@ -171,4 +176,35 @@ export async function getAlbum(albumId: string) {
 // Get an artist
 export async function getArtist(artistId: string) {
   return spotifyFetch(`/artists/${artistId}`)
+}
+
+// Get an artist's top tracks
+export async function getArtistTopTracks(artistId: string, market = 'from_token') {
+  return spotifyFetch(`/artists/${artistId}/top-tracks?market=${market}`);
+}
+
+// Get an artist's albums
+export async function getArtistAlbums(artistId: string, params: Record<string, string> = {}) {
+  const search = new URLSearchParams(params).toString();
+  return spotifyFetch(`/artists/${artistId}/albums${search ? `?${search}` : ''}`);
+}
+
+// Get current user's saved tracks
+export async function getUserSavedTracks() {
+  return spotifyFetch("/me/tracks");
+}
+
+// Get current user's recently played tracks
+export async function getRecentlyPlayedTracks() {
+  return spotifyFetch("/me/player/recently-played");
+}
+
+// Get new releases (albums)
+export async function getNewReleases() {
+  return spotifyFetch("/browse/new-releases");
+}
+
+// Get current user's saved albums
+export async function getUserSavedAlbums() {
+  return spotifyFetch("/me/albums");
 }
