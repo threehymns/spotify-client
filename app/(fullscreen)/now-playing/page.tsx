@@ -154,7 +154,7 @@ export default function NowPlayingPage() {
             );
           })() : <span>No track playing</span>}
         </div>
-        <div className="text-base text-zinc-400 truncate">
+        <div className="font-light truncate text-muted-foreground">
           {currentTrack && currentTrack.artists
             ? currentTrack.artists.map((a: { id?: string; name: string; uri?: string }, i: number) => {
               let artistId = a.id;

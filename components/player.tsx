@@ -49,7 +49,7 @@ export default function Player() {
   // Always show player controls, even if nothing is playing
   return (
     <div
-      className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-between px-6 h-20 bg-zinc-950/90 backdrop-saturate-200 backdrop-blur-xl border-t border-zinc-800"
+      className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-between px-6 h-20 bg-zinc-950/90 backdrop-saturate-200 backdrop-blur-md border-t border-zinc-800"
     >
       {/* Track info */}
       <div className="flex items-center w-1/3">

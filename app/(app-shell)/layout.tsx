@@ -1,6 +1,4 @@
 import RootNav from "@/components/root-nav";
-import { SpotifyProvider } from "@/context/spotify-context";
-import { AuthProvider } from "@/context/auth-context";
 import React from "react";
 import type { Metadata } from "next";
 import "../globals.css";
