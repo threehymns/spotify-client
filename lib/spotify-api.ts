@@ -66,6 +66,12 @@ export interface SpotifyPaging<T> {
   total: number
 }
 
+export interface SpotifyPlaylistResponse extends SpotifyPaging<SpotifyPlaylist> {}
+
+export async function getUserPlaylists(signal?: AbortSignal): Promise<SpotifyPlaylistResponse> {
+  return spotifyFetch("/me/playlists", { signal }) as Promise<SpotifyPlaylistResponse>
+}
+
 export interface SavedTrack {
   added_at: string
   track: SpotifyTrack
@@ -222,11 +228,6 @@ export async function getUserProfile(
   signal?: AbortSignal
 ): Promise<UserProfile> {
   return spotifyFetch('/me', { signal });
-}
-
-// Get current user's playlists
-export async function getUserPlaylists() {
-  return spotifyFetch("/me/playlists")
 }
 
 // Create a new playlist
