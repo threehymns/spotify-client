@@ -1,8 +1,16 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from "react"
+import { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo, type ReactNode } from "react"
 import { getAccessToken } from "@/lib/auth-helpers"
-import { spotifyFetch } from "@/lib/spotify-api"
+import { spotifyFetch, checkSavedAlbums, saveAlbums, removeSavedAlbums, checkPlaylistFollowed, followPlaylist, unfollowPlaylist, checkFollowingArtists, followArtists, unfollowArtists, checkSavedTracks, saveTracks, removeSavedTracks, getUserProfile } from "@/lib/spotify-api"
+
+// Declare Spotify Web Playback SDK types
+declare global {
+  interface Window {
+    Spotify: any; // TODO: Replace 'any' with proper Spotify types if available
+    onSpotifyWebPlaybackSDKReady: () => void;
+  }
+}
 
 type SpotifyContextType = {
   currentTrack: any
@@ -19,11 +27,21 @@ type SpotifyContextType = {
   isMuted: boolean
   position: number
   duration: number
-}
+  isAlbumSaved: (albumId: string) => Promise<boolean>
+  toggleSaveAlbum: (albumId: string, save: boolean) => Promise<void>
+  isPlaylistFollowed: (playlistId: string) => Promise<boolean>
+  toggleFollowPlaylist: (playlistId: string, follow: boolean) => Promise<void>
+  isArtistFollowed: (artistId: string) => Promise<boolean>;
+  toggleFollowArtist: (artistId: string, follow: boolean) => Promise<void>;
+  isTrackSaved: (trackId: string) => Promise<boolean>;
+  areTracksSaved: (trackIds: string[]) => Promise<boolean[]>;
+  toggleSaveTrack: (trackId: string, save: boolean) => Promise<void>;
+};
 
 const SpotifyContext = createContext<SpotifyContextType | undefined>(undefined)
 
 export function SpotifyProvider({ children }: { children: ReactNode }) {
+  const playerRef = useRef<any>(null)
   const [player, setPlayer] = useState<any>(null)
   const [deviceId, setDeviceId] = useState<string | null>(null)
   const [isReady, setIsReady] = useState(false)
@@ -36,6 +54,117 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
   const [duration, setDuration] = useState(0)
   // Flag to ensure initial sync workaround runs only once
   const initialSyncDone = useRef(false)
+
+  // Memoized API functions
+  const isAlbumSaved = useCallback(async (albumId: string) => {
+    try {
+      const response = await checkSavedAlbums([albumId]);
+      return Array.isArray(response) ? response[0] || false : false;
+    } catch (error) {
+      console.error("Failed to check album saved status:", error);
+      return false;
+    }
+  }, [])
+
+  const toggleSaveAlbum = useCallback(async (albumId: string, save: boolean) => {
+    try {
+      if (save) {
+        await saveAlbums([albumId]);
+      } else {
+        await removeSavedAlbums([albumId]);
+      }
+    } catch (error) {
+      console.error("Failed to toggle album save status:", error);
+    }
+  }, [])
+
+  const isPlaylistFollowed = useCallback(async (playlistId: string) => {
+    try {
+      const user = await getUserProfile();
+      const response = await checkPlaylistFollowed(playlistId, [user.id]);
+      return Array.isArray(response) ? response[0] || false : false;
+    } catch (error) {
+      console.error("Failed to check playlist follow status:", error);
+      return false;
+    }
+  }, [])
+
+  const toggleFollowPlaylist = useCallback(async (playlistId: string, follow: boolean) => {
+    try {
+      if (follow) {
+        await followPlaylist(playlistId);
+      } else {
+        await unfollowPlaylist(playlistId);
+      }
+    } catch (error) {
+      console.error("Failed to toggle playlist follow status:", error);
+    }
+  }, [])
+
+  const isArtistFollowed = useCallback(async (artistId: string) => {
+    try {
+      const response = await checkFollowingArtists([artistId]);
+      return Array.isArray(response) ? response[0] || false : false;
+    } catch (error) {
+      console.error("Failed to check artist follow status:", error);
+      return false;
+    }
+  }, [])
+
+  const toggleFollowArtist = useCallback(async (artistId: string, follow: boolean) => {
+    try {
+      if (follow) {
+        await followArtists([artistId]);
+      } else {
+        await unfollowArtists([artistId]);
+      }
+    } catch (error) {
+      console.error("Failed to toggle artist follow status:", error);
+    }
+  }, [])
+
+  const isTrackSaved = useCallback(async (trackId: string) => {
+    try {
+      const response = await checkSavedTracks([trackId]);
+      return Array.isArray(response) ? response[0] || false : false;
+    } catch (error) {
+      console.error("Failed to check track saved status:", error);
+      return false;
+    }
+  }, [])
+
+  const areTracksSaved = useCallback(async (trackIds: string[]) => {
+    try {
+      const batchSize = 100;
+      const results: boolean[] = [];
+      
+      // Split trackIds into chunks of batchSize
+      for (let i = 0; i < trackIds.length; i += batchSize) {
+        const chunk = trackIds.slice(i, i + batchSize);
+        const chunkResults = await checkSavedTracks(chunk);
+        results.push(...chunkResults);
+      }
+      
+      return results;
+    } catch (error) {
+      console.error("Failed to check tracks saved status:", error);
+      return trackIds.map(() => false);
+    }
+  }, [])
+
+  const toggleSaveTrack = useCallback(async (trackId: string, save: boolean) => {
+    try {
+      if (save) {
+        await saveTracks([trackId]);
+      } else {
+        await removeSavedTracks([trackId]);
+      }
+    } catch (error) {
+      console.error("Failed to toggle track save status:", error);
+    }
+  }, [])
+
+
 
   // Progress bar update interval
   useEffect(() => {
@@ -73,32 +202,32 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
           window.onSpotifyWebPlaybackSDKReady = () => {
             const player = new window.Spotify.Player({
               name: "Pulse Web Player",
-              getOAuthToken: (cb) => {
+              getOAuthToken: (cb: (token: string) => void) => {
                 cb(token)
               },
             })
 
             // Error handling
-            player.addListener("initialization_error", ({ message }) => {
+            player.addListener("initialization_error", ({ message }: { message: string }) => {
               console.error("Initialization error:", message)
             })
 
-            player.addListener("authentication_error", ({ message }) => {
+            player.addListener("authentication_error", ({ message }: { message: string }) => {
               console.error("Authentication error:", message)
             })
 
-            player.addListener("account_error", ({ message }) => {
+            player.addListener("account_error", ({ message }: { message: string }) => {
               console.error("Account error:", message)
             })
 
-            player.addListener("playback_error", ({ message }) => {
+            player.addListener("playback_error", ({ message }: { message: string }) => {
               console.error("Playback error:", message)
             })
 
             // Playback status updates
-            player.addListener("player_state_changed", (state) => {
+            player.addListener("player_state_changed", (state: any) => { // TODO: Replace 'any' with proper Spotify types if available
               if (state) {
-                const currentState = state as any; // Type assertion
+                const currentState = state as any; // TODO: Replace 'any' with proper Spotify types if available
                 setCurrentTrack(currentState.track_window.current_track)
                 setIsPlaying(!currentState.paused)
                 setPosition(currentState.position / 1000)
@@ -109,9 +238,10 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
             })
 
             // Ready
-            player.addListener("ready", async ({ device_id }) => {
+            player.addListener("ready", async ({ device_id }: { device_id: string }) => {
               console.log("Ready with Device ID", device_id)
-              setPlayer(player)
+              playerRef.current = player
+          setPlayer(player)
               setDeviceId(device_id)
               setIsReady(true)
 
@@ -143,9 +273,7 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
     loadSpotifyPlayer()
 
     return () => {
-      if (player) {
-        player.disconnect()
-      }
+      playerRef.current?.disconnect()
     }
   }, [])
 
@@ -168,7 +296,7 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
       if (!initialSyncDone.current) {
         setTimeout(async () => {
           if (player && isReady) {
-            const state = await player.getCurrentState();
+            const state = await player.getCurrentState(); // TODO: Replace 'any' with proper Spotify types if available
             if (state) {
               setCurrentTrack(state.track_window.current_track);
               setIsPlaying(!state.paused);
@@ -219,7 +347,7 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
       if (!initialSyncDone.current) {
         setTimeout(async () => {
           if (player && isReady) {
-            const state = await player.getCurrentState();
+            const state = await player.getCurrentState(); // TODO: Replace 'any' with proper Spotify types if available
             if (state) {
               setCurrentTrack(state.track_window.current_track);
               setIsPlaying(!state.paused);
@@ -312,26 +440,47 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
     // No re-fetch needed; SDK event will update state
   }
 
+  // Store stable callback functions in a ref to prevent unnecessary re-renders
+  const stableCallbacksRef = useRef({
+    playTrack,
+    playUri,
+    togglePlayback,
+    skipToNext,
+    skipToPrevious,
+    setVolume,
+    setMute,
+    seekTo,
+    isAlbumSaved,
+    toggleSaveAlbum,
+    isPlaylistFollowed,
+    toggleFollowPlaylist,
+    isArtistFollowed,
+    toggleFollowArtist,
+    isTrackSaved,
+    areTracksSaved,
+    toggleSaveTrack,
+  }).current
+
+  const contextValue = useMemo(() => ({
+    currentTrack,
+    isPlaying,
+    volume,
+    isMuted,
+    position,
+    duration,
+    ...stableCallbacksRef,
+  }), [
+    currentTrack,
+    isPlaying,
+    volume,
+    isMuted,
+    position,
+    duration,
+  ]);
 
   return (
-    <SpotifyContext.Provider
-      value={{
-        currentTrack,
-        isPlaying,
-        playTrack,
-        playUri,
-        togglePlayback,
-        skipToNext,
-        skipToPrevious,
-        setVolume,
-        setMute,
-        seekTo,
-        volume,
-        isMuted,
-        position,
-        duration,
-      }}
-    >
+    <SpotifyContext.Provider value={contextValue}>
+
       {children}
     </SpotifyContext.Provider>
   )

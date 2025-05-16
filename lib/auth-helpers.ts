@@ -46,13 +46,13 @@ export async function getCredentials() {
 
 // Get access token directly from localStorage without decryption
 // This is used when we've stored the token directly from cookies
-export async function getAccessToken() {
+export async function getAccessToken(forceRefresh = false) {
   try {
-    console.log("Getting access token...")
+    console.log("Getting access token...", forceRefresh ? "(force refresh)" : "")
 
     // First try to get the token directly (for tokens stored from cookies)
     const directAccessToken = localStorage.getItem("spotify_access_token")
-    if (directAccessToken && !directAccessToken.includes(" ")) {
+    if (directAccessToken && !directAccessToken.includes(" ") && !forceRefresh) {
       console.log("Using direct access token from localStorage")
       return directAccessToken
     }
@@ -67,9 +67,9 @@ export async function getAccessToken() {
       return null
     }
 
-    // Check if token is expired
-    if (Date.now() > Number.parseInt(expiresAt)) {
-      console.log("Access token expired, refreshing...")
+    // Check if token is expired or force refresh is requested
+    if (Date.now() > Number.parseInt(expiresAt) || forceRefresh) {
+      console.log(forceRefresh ? "Force refreshing access token..." : "Access token expired, refreshing...")
       return refreshAccessToken()
     }
 

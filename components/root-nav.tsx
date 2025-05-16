@@ -86,11 +86,10 @@ export default function RootNav({ children }: { children: React.ReactNode }) {
                     <button
                       key={label}
                       className={`flex items-center w-full px-4 py-2 rounded-xl transition group/item text-base font-semibold focus:outline-none
-                    ${
-                      pathname === path
-                        ? "bg-green-900/40 border-l-4 border-green-500 text-green-100"
-                        : "text-zinc-200 hover:bg-green-900/30 hover:text-green-300"
-                    }
+                    ${pathname === path
+                          ? "bg-green-900/40 border-l-4 border-green-500 text-green-100"
+                          : "text-zinc-200 hover:bg-green-900/30 hover:text-green-300"
+                        }
                   `}
                       onClick={onClick || (() => router.push(path))}
                     >
@@ -118,12 +117,12 @@ export default function RootNav({ children }: { children: React.ReactNode }) {
               </SidebarContent>
             </Sidebar>
             {/* Main content with search bar */}
-            <div className="flex-1 z-0 overflow-auto">
-              <div className="sticky top-0 z-30 px-4 pb-2 flex items-center justify-center">
-                <SidebarTrigger className="absolute left-4 top-1/2 -translate-y-1/2" />
-                {/* Back/Forward buttons and Sidebar toggle */}
-                <div className="py-2 px-20 flex items-center gap-2 border border-zinc-700/30 backdrop-blur backdrop-saturate-200 rounded-b-full bg-zinc-900/10">
-                  <button
+            <div className="flex-1 overflow-auto">
+              <div className="sticky top-0 z-30 bg-gradient-to-b from-zinc-950/95 to-transparent px-4 pb-2 flex items-center justify-center" suppressHydrationWarning>
+                {/* Search bar */}
+                <div className="blur-gradient pt-3"
+                >
+                  {/* <button
                     aria-label="Back"
                     className="rounded-full border border-zinc-700/80 bg-zinc-900/70 hover:bg-zinc-800 text-zinc-300 p-2 transition disabled:opacity-50"
                     onClick={() => router.back()}
@@ -138,7 +137,7 @@ export default function RootNav({ children }: { children: React.ReactNode }) {
                     tabIndex={0}
                   >
                     <ChevronRight className="h-5 w-5" />
-                  </button>
+                  </button> */}
                   {/* Search bar */}
                   <div className="relative w-full">
                     <Search className="absolute size-5 left-4 top-1/2 transform -translate-y-1/2 text-zinc-400 z-10" />
@@ -146,7 +145,7 @@ export default function RootNav({ children }: { children: React.ReactNode }) {
                       ref={searchInputRef}
                       type="search"
                       placeholder="What do you want to play?"
-                      className="pl-12 pr-4 py-2 rounded-full bg-zinc-800/80 border border-zinc-700 focus:border-green-500 focus-visible:ring-2 focus-visible:ring-green-500 text-white w-full shadow-md backdrop-saturate-200 transition-all duration-200 placeholder:text-zinc-500 focus:shadow-lg outline-none"
+                      className="pl-12 pr-4 py-2 rounded-full bg-zinc-800/80 border border-zinc-700 focus:border-green-500 focus-visible:ring-2 focus-visible:ring-green-500 text-white w-full shadow-md backdrop-blur backdrop-saturate-200 transition-all duration-200 placeholder:text-zinc-500 focus:shadow-lg outline-none"
                       style={{ boxShadow: "0 2px 12px 0 rgba(0,0,0,0.10)" }}
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
@@ -158,6 +157,7 @@ export default function RootNav({ children }: { children: React.ReactNode }) {
                     />
                   </div>
                 </div>
+                <SidebarTrigger className="absolute left-4 top-1/2 -translate-y-1/2" />
               </div>
               {children}
               <Player />

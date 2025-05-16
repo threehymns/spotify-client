@@ -29,7 +29,7 @@ export default function LoginPage() {
       console.error("Error from callback:", errorParam)
 
       // Map error codes to user-friendly messages
-      const errorMessages = {
+      const errorMessages: { [key: string]: string } = {
         access_denied: "Access was denied by Spotify or the user. Please try again.",
         invalid_client: "Invalid client ID or client secret. Please check your credentials.",
         invalid_grant: "The authorization code is invalid or expired. Please try again.",
@@ -44,7 +44,7 @@ export default function LoginPage() {
     }
   }, [])
 
-  const updateStatus = (message) => {
+  const updateStatus = (message: string) => {
     console.log(message)
     setStatusMessage(message)
   }
@@ -86,9 +86,9 @@ export default function LoginPage() {
       // Redirect to Spotify authorization
       const redirectUri = `${window.location.origin}/api/auth/callback`
       const scope =
-        "user-read-private user-read-email playlist-read-private playlist-modify-private playlist-modify-public user-library-read user-library-modify streaming user-read-playback-state user-modify-playback-state"
+        "user-read-private user-read-email playlist-read-private playlist-modify-private playlist-modify-public user-library-read user-library-modify streaming user-read-playback-state user-modify-playback-state user-follow-modify user-follow-read"
 
-      // Generate a random state value for CSRF protection
+     // Generate a random state value for CSRF protection
       const state = crypto.randomUUID()
       // Store the state in localStorage to verify when the callback returns
       localStorage.setItem("spotify_auth_state", state)
