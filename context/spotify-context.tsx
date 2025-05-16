@@ -4,6 +4,21 @@ import { createContext, useContext, useState, useEffect, useRef, useCallback, us
 import { getAccessToken } from "@/lib/auth-helpers"
 import { spotifyFetch, checkSavedAlbums, saveAlbums, removeSavedAlbums, checkPlaylistFollowed, followPlaylist, unfollowPlaylist, checkFollowingArtists, followArtists, unfollowArtists, checkSavedTracks, saveTracks, removeSavedTracks, getUserProfile } from "@/lib/spotify-api"
 
+// Spotify API Response Types
+interface SpotifyTrack {
+  id: string;
+  name: string;
+  duration_ms: number;
+  // Add other track properties as needed
+}
+
+interface CurrentlyPlayingResponse {
+  item: SpotifyTrack;
+  is_playing: boolean;
+  progress_ms: number;
+  // Add other properties as needed
+}
+
 // Declare Spotify Web Playback SDK types
 declare global {
   interface Window {
@@ -192,6 +207,39 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
         const token = await getAccessToken()
         setAccessToken(token)
 
+        // First, fetch current playback state from API
+        try {
+          const response = await spotifyFetch<CurrentlyPlayingResponse>('/me/player/currently-playing')
+          if (response && response.item) {
+            setCurrentTrack(response.item)
+            setIsPlaying(response.is_playing)
+            setPosition(response.progress_ms / 1000)
+            setDuration(response.item.duration_ms / 1000)
+            setVolumeState(50) // Default volume
+            setIsMuted(false)
+          }
+        } catch (error) {
+          console.error('Failed to fetch current playback state:', error)
+        }
+
+        // Set up periodic sync with other clients
+        const syncInterval = setInterval(async () => {
+          try {
+            const response = await spotifyFetch<CurrentlyPlayingResponse>('/me/player/currently-playing')
+            if (response && response.item) {
+              setCurrentTrack(response.item)
+              setIsPlaying(response.is_playing)
+              setPosition(response.progress_ms / 1000)
+              setDuration(response.item.duration_ms / 1000)
+            }
+          } catch (error) {
+            console.error('Failed to sync playback state:', error)
+          }
+        }, 5000) // Check every 5 seconds
+
+        // Cleanup interval on unmount
+        return () => clearInterval(syncInterval)
+
         // Load Spotify Web Playback SDK
         if (!window.Spotify) {
           const script = document.createElement("script")
@@ -241,7 +289,7 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
             player.addListener("ready", async ({ device_id }: { device_id: string }) => {
               console.log("Ready with Device ID", device_id)
               playerRef.current = player
-          setPlayer(player)
+              setPlayer(player)
               setDeviceId(device_id)
               setIsReady(true)
 
