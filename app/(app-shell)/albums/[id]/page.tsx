@@ -14,7 +14,7 @@ import { motion } from "motion/react"
 import { useDominantColorWorker } from "@/hooks/useDominantColorWorker"
 
 export default function AlbumPage({ params }: { params: Promise<{ id: string }> }) {
-  const { playUri, isAlbumSaved, toggleSaveAlbum } = useSpotify();
+  const { play, isAlbumSaved, toggleSaveAlbum } = useSpotify();
   const { id } = use(params);
   const [album, setAlbum] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -166,7 +166,7 @@ export default function AlbumPage({ params }: { params: Promise<{ id: string }> 
                 transition={{ duration: 0.5, delay: 0.4 }}
               >
                 <Button 
-                  onClick={() => playUri(album.uri)} 
+                  onClick={() => play(album.uri)} 
                   size="lg" 
                   className="bg-green-500 hover:bg-green-600 text-white px-8"
                   style={{

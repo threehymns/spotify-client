@@ -26,7 +26,7 @@ interface AlbumCardProps {
 }
 
 export function AlbumCard({ album, showArtists = true, showPlayButton = true, className = "", href }: AlbumCardProps) {
-  const { playUri } = useSpotify();
+  const { play } = useSpotify();
   const imgUrl = album.images[0]?.url;
   const { ref, inView } = useInView({ triggerOnce: true, rootMargin: '200px' });
   const { color } = useDominantColorWorker(album.id, inView ? imgUrl : undefined);
@@ -47,7 +47,7 @@ export function AlbumCard({ album, showArtists = true, showPlayButton = true, cl
       )}
       <div className="relative w-full aspect-square overflow-hidden rounded-lg shadow">
         <img src={imgUrl || "/placeholder.svg?height=200&width=200"} alt={album.name} className="w-full h-full object-cover" />
-        {showPlayButton && playUri && album.uri && (
+        {showPlayButton && play && album.uri && (
           <Button
             className="absolute bottom-0 right-0 m-auto h-1/4 w-1/4 flex items-center justify-center rounded-tl-3xl text-white opacity-0 group-hover:opacity-100 translate-y-5 group-hover:translate-y-0 group-focus-within:opacity-100 group-focus-within:translate-y-0 focus:opacity-100 focus:translate-y-0 transition-all duration-200 z-20 brightness-125 hover:brightness-150"
             style={{ backgroundColor: bg }}
@@ -57,7 +57,7 @@ export function AlbumCard({ album, showArtists = true, showPlayButton = true, cl
             onClick={e => {
               e.stopPropagation();
               e.preventDefault();
-              playUri(album.uri || '');
+              play(album.uri || '');
             }}
           >
             <Play className="!size-2/3" fill="white" />

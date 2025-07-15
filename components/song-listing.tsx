@@ -28,7 +28,7 @@ export interface SongListingProps {
 }
 
 export default function SongListing({ tracks, getAlbumHref }: SongListingProps) {
-  const { playUri, areTracksSaved, toggleSaveTrack } = useSpotify()
+  const { areTracksSaved } = useSpotify()
   const [savedStatuses, setSavedStatuses] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
@@ -97,7 +97,7 @@ interface TrackRowProps {
 }
 
 function TrackRow({ track, getAlbumHref, isSaved, index, onToggleSave }: TrackRowProps) {
-  const { playUri, toggleSaveTrack } = useSpotify();
+  const { play, toggleSaveTrack } = useSpotify();
 
   const handleToggleLike = async () => {
     if (track.id) {
@@ -128,7 +128,7 @@ function TrackRow({ track, getAlbumHref, isSaved, index, onToggleSave }: TrackRo
             size="icon"
             variant="ghost"
             className="absolute inset-0 opacity-0 group-hover:opacity-100 text-white h-8 w-8"
-            onClick={() => playUri(track.uri)}
+            onClick={() => play(track.uri)}
           >
             <Play className="h-4 w-4" fill="currentColor" />
           </Button>

@@ -18,13 +18,39 @@ export default function Player() {
     skipToNext,
     skipToPrevious,
     setVolume,
-    setMute,
     seekTo,
     volume,
-    isMuted,
     position,
     duration
   } = useSpotify()
+
+  const [isMuted, setIsMuted] = useState(false);
+  const [previousVolume, setPreviousVolume] = useState(volume);
+  const [currentPosition, setCurrentPosition] = useState(position);
+
+  useEffect(() => {
+    setCurrentPosition(position);
+  }, [position]);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    if (isPlaying) {
+      interval = setInterval(() => {
+        setCurrentPosition((prev) => {
+          if (prev < duration) {
+            return prev + 1;
+          }
+          return prev;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [isPlaying, duration]);
+
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
@@ -35,15 +61,28 @@ export default function Player() {
   const handleVolumeChange = (value: number[]) => {
     const newVolume = value[0]
     setVolume(newVolume)
+    if (newVolume === 0) {
+      setIsMuted(true);
+    } else {
+      setIsMuted(false);
+    }
   }
 
   const toggleMute = () => {
-    setMute(!isMuted)
+    if (isMuted) {
+      setVolume(previousVolume);
+      setIsMuted(false);
+    } else {
+      setPreviousVolume(volume);
+      setVolume(0);
+      setIsMuted(true);
+    }
   }
 
   const handleProgressChange = (value: number[]) => {
     const newProgress = value[0]
     seekTo(newProgress)
+    setCurrentPosition(newProgress);
   }
 
   // Always show player controls, even if nothing is playing
@@ -133,10 +172,10 @@ export default function Player() {
         </motion.div>
         {/* Progress bar group with layoutId */}
         <motion.div layoutId="now-playing-progress" className="flex items-center gap-2 w-full">
-          <div className="text-xs text-zinc-400 w-10 text-right font-mono tracking-tight">{formatTime(currentTrack ? position : 0)}</div>
+          <div className="text-xs text-zinc-400 w-10 text-right font-mono tracking-tight">{formatTime(currentTrack ? currentPosition : 0)}</div>
           <div className="w-full group">
             <Slider
-              value={[currentTrack ? position : 0]}
+              value={[currentTrack ? currentPosition : 0]}
               max={currentTrack ? duration : 100}
               step={1}
               onValueChange={handleProgressChange}

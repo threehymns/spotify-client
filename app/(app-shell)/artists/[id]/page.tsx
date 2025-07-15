@@ -44,7 +44,7 @@ export default function ArtistPage({
   const [albums, setAlbums] = useState<any[] | null>(null);
   const [albumsLoading, setAlbumsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { playUri, isArtistFollowed, toggleFollowArtist } = useSpotify();
+  const { play, isArtistFollowed, toggleFollowArtist } = useSpotify();
   const [isFollowing, setIsFollowing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -227,7 +227,7 @@ export default function ArtistPage({
                 transition={{ duration: 0.5, delay: 0.4 }}
               >
                 <Button
-                  onClick={() => playUri(`spotify:artist:${artist.id}`)}
+                  onClick={() => play(`spotify:artist:${artist.id}`)}
                   size="lg"
                   className="bg-green-500 hover:bg-green-600 text-white px-8"
                   style={{

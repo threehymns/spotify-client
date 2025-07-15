@@ -45,7 +45,7 @@ type SearchResultsProps = {
 };
 
 export default function SearchResults({ query }: SearchResultsProps) {
-  const { playTrack, addToPlaylist } = useSpotify();
+  const { play, addToPlaylist } = useSpotify();
   const [results, setResults] = useState<SearchResultsState>({
     tracks: { href: '', items: [], limit: 0, next: null, offset: 0, previous: null, total: 0 },
     artists: { href: '', items: [], limit: 0, next: null, offset: 0, previous: null, total: 0 },
@@ -139,7 +139,7 @@ export default function SearchResults({ query }: SearchResultsProps) {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 ml-4">
-                  <Button size="icon" variant="ghost" onClick={() => playTrack(track.uri)}>
+                  <Button size="icon" variant="ghost" onClick={() => play(track.uri)}>
                     <Play className="h-5 w-5" />
                   </Button>
                   <Button size="icon" variant="ghost" onClick={() => addToPlaylist(track)}>

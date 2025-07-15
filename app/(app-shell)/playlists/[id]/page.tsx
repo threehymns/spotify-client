@@ -154,7 +154,7 @@ export default function PlaylistDetailPage({
       handleFetchError(error, 'tracks');
     }
   }, [id, tracks.length, handleFetchError]);
-  const { playUri } = useSpotify();
+  const { play } = useSpotify();
 
   // Load initial data
   useEffect(() => {
@@ -306,7 +306,7 @@ export default function PlaylistDetailPage({
         isOwner={isOwner}
         isLiked={isLiked}
         isSaving={isSaving}
-        onPlay={() => playUri(playlist!.uri)}
+        onPlay={() => play(playlist!.uri)}
         onLikeToggle={async () => {
           if (isSaving) return;
           try {

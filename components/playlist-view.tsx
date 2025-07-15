@@ -25,7 +25,7 @@ import { motion } from "motion/react";
 import { Play, Plus, ListMusic, Music, Clock } from "lucide-react";
 
 export default function PlaylistView() {
-  const { playUri } = useSpotify();
+  const { play } = useSpotify();
   const [playlists, setPlaylists] = useState<SpotifyPlaylist[]>([]);
   const [loading, setLoading] = useState(true);
   const [newPlaylistName, setNewPlaylistName] = useState("");
@@ -197,7 +197,7 @@ export default function PlaylistView() {
                                 className="rounded-full bg-green-500 hover:bg-green-600 text-white shadow-lg"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  playUri(playlist.uri);
+                                  play(playlist.uri);
                                 }}
                               >
                                 <Play

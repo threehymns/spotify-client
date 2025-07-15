@@ -149,7 +149,7 @@ function ProfileOverview() {
 }
 
 function PlaylistsSection() {
-  const { playUri } = useSpotify();
+  const { play } = useSpotify();
   const [playlists, setPlaylists] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -273,7 +273,7 @@ function PlaylistsSection() {
                             onClick={(e) => {
                               e.stopPropagation(); // Prevent link navigation
                               e.preventDefault();
-                              playUri(playlist.uri);
+                              play(playlist.uri);
                             }}
                           >
                             <Play className="w-4 h-4 fill-current" />
@@ -348,7 +348,7 @@ function SavedSongsSection() {
   const [tracks, setTracks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { playUri } = useSpotify();
+  const { play } = useSpotify();
 
   useEffect(() => {
     setLoading(true);
@@ -370,7 +370,7 @@ function SavedSongsSection() {
     if (trackUris.length > 0) {
       // Spotify API might require a context URI (like playlist/album)
       // or a list of track URIs for playback. Playing just the first track for now.
-      playUri(trackUris[0]);
+      play(trackUris[0]);
     }
   };
 
@@ -460,7 +460,7 @@ function SavedSongsSection() {
                           onClick={(e) => {
                             e.stopPropagation();
                             e.preventDefault();
-                            if (track.uri) playUri(track.uri);
+                            if (track.uri) play(track.uri);
                           }}
                         >
                           <Play className="w-4 h-4 fill-current" />
@@ -513,7 +513,7 @@ function SavedAlbumsSection() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
-  const { playUri } = useSpotify();
+  const { play } = useSpotify();
 
   // Limit initial display
   const INITIAL_DISPLAY_COUNT = 6;
@@ -613,7 +613,7 @@ function SavedAlbumsSection() {
                             onClick={(e) => {
                               e.stopPropagation();
                               e.preventDefault();
-                              playUri(album.uri);
+                              play(album.uri);
                             }}
                           >
                             <Play className="w-4 h-4 fill-current" />
