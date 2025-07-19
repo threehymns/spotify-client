@@ -11,53 +11,53 @@ export const SpotifyPaging = <T extends z.ZodTypeAny>(itemSchema: T) =>
     total: z.number(),
   });
 
-export const SpotifyImageSchema = z.object({
+export const SpotifyImage = z.object({
   url: z.string(),
   height: z.number().nullable(),
   width: z.number().nullable(),
 });
 
-export const SpotifyUserSchema = z.object({
+export const SpotifyUser = z.object({
   id: z.string(),
   display_name: z.string().optional(),
   external_urls: z.object({
     spotify: z.string(),
   }),
-  images: z.array(SpotifyImageSchema).optional(),
+  images: z.array(SpotifyImage).optional(),
 });
 
-export const SpotifyArtistSchema = z.object({
+export const SpotifyArtist = z.object({
   id: z.string(),
   name: z.string(),
   type: z.literal("artist"),
   uri: z.string(),
-  images: z.array(SpotifyImageSchema).optional(),
+  images: z.array(SpotifyImage).optional(),
 });
 
 // Define Album and ; schemas with z.lazy to handle the circular dependency.
-export const SpotifyAlbumSchema: z.ZodType<any> = z.lazy(() =>
+export const SpotifyAlbum: z.ZodType<any> = z.lazy(() =>
   z.object({
     id: z.string(),
     name: z.string(),
-    artists: z.array(SpotifyArtistSchema),
-    images: z.array(SpotifyImageSchema),
+    artists: z.array(SpotifyArtist),
+    images: z.array(SpotifyImage),
     release_date: z.string(),
     total_tracks: z.number(),
     type: z.literal("album"),
     uri: z.string(),
-    tracks: SpotifyPaging(SpotifySimplifiedTrackSchema).optional(),
+    tracks: SpotifyPaging(SpotifySimplifiedTrack).optional(),
   })
 );
 
-export const SpotifyTrackSchema: z.ZodType<any> = z.lazy(() =>
+export const SpotifyTrack: z.ZodType<any> = z.lazy(() =>
   z.object({
     id: z.string(),
     name: z.string(),
     type: z.literal("track"),
     uri: z.string(),
     duration_ms: z.number(),
-    artists: z.array(SpotifyArtistSchema),
-    album: SpotifyAlbumSchema,
+    artists: z.array(SpotifyArtist),
+    album: SpotifyAlbum,
     is_local: z.boolean(),
     popularity: z.number(),
     track_number: z.number(),
@@ -65,47 +65,47 @@ export const SpotifyTrackSchema: z.ZodType<any> = z.lazy(() =>
   })
 );
 
-export const SpotifySavedTrackSchema = z.object({
+export const SpotifySavedTrack = z.object({
   added_at: z.string(),
-  track: SpotifyTrackSchema,
+  track: SpotifyTrack,
 });
 
-export const SpotifySavedAlbumSchema = z.object({
+export const SpotifySavedAlbum = z.object({
   added_at: z.string(),
-  album: SpotifyAlbumSchema,
+  album: SpotifyAlbum,
 });
 
 export const SpotifyPlaylistTrack = z.object({
   added_at: z.string(),
-  added_by: SpotifyUserSchema,
+  added_by: SpotifyUser,
   is_local: z.boolean(),
-  track: SpotifyTrackSchema.nullable(),
+  track: SpotifyTrack.nullable(),
 });
 
-export const SpotifyPlaylistSchema = z.object({
+export const SpotifyPlaylist = z.object({
   id: z.string(),
   name: z.string(),
   description: z.string().nullable().optional(),
-  images: z.array(SpotifyImageSchema).nullable(),
-  owner: SpotifyUserSchema,
+  images: z.array(SpotifyImage).nullable(),
+  owner: SpotifyUser,
   tracks: SpotifyPaging(SpotifyPlaylistTrack),
   uri: z.string(),
   public: z.boolean().optional(),
   followers: z.object({ total: z.number() }).optional(),
 });
 
-export const SpotifySimplifiedPlaylistSchema = z.object({
+export const SpotifySimplifiedPlaylist = z.object({
   id: z.string(),
   name: z.string(),
   description: z.string().nullable().optional(),
-  images: z.array(SpotifyImageSchema).nullable(),
-  owner: SpotifyUserSchema,
+  images: z.array(SpotifyImage).nullable(),
+  owner: SpotifyUser,
   tracks: z.object({ href: z.string(), total: z.number() }),
   uri: z.string(),
 });
 
-export const SpotifySimplifiedTrackSchema = z.object({
-  artists: z.array(SpotifyArtistSchema),
+export const SpotifySimplifiedTrack = z.object({
+  artists: z.array(SpotifyArtist),
   available_markets: z.array(z.string()).optional(),
   disc_number: z.number(),
   duration_ms: z.number(),

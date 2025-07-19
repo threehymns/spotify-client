@@ -16,16 +16,13 @@ import { useEffect, useState } from "react";
 import UniversalContextMenu from "@/components/universal-context-menu";
 import Loading from "@/components/loading";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import {
-  SpotifyPlaylist,
-  SpotifyTrack,
-  SpotifyAlbum,
-  SpotifyUser,
-} from "@/lib/zod-schemas";
+import Image from "next/image";
+import type { SpotifyAlbum, SpotifyPlaylist, SpotifyTrack, SpotifyUser } from "@/lib/zod-schemas";
+import { z } from "zod";
 
 function ProfileOverview() {
   const { user } = useAuth();
-  const [profile, setProfile] = useState<SpotifyUser | null>(null);
+  const [profile, setProfile] = useState<z.infer<typeof SpotifyUser> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -76,10 +73,12 @@ function ProfileOverview() {
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.5 }}
             >
-              <img
+              <Image
                 src={profileImageUrl || "/placeholder.svg?height=192&width=192"}
                 alt={profile.display_name || "User"}
                 className="w-full h-full object-cover"
+                width={192}
+                height={192}
               />
             </motion.div>
             <motion.div
@@ -144,7 +143,7 @@ function ProfileOverview() {
 function PlaylistsSection() {
   const { play } = useSpotify();
   const { api } = useAuth();
-  const [playlists, setPlaylists] = useState<SpotifyPlaylist[]>([]);
+  const [playlists, setPlaylists] = useState<z.infer<typeof SpotifyPlaylist>[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
@@ -342,7 +341,7 @@ function PlaylistsSection() {
 
 function SavedSongsSection() {
   const { api } = useAuth();
-  const [tracks, setTracks] = useState<SpotifyTrack[]>([]);
+  const [tracks, setTracks] = useState<z.infer<typeof SpotifyTrack>[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { play } = useSpotify();
@@ -353,7 +352,7 @@ function SavedSongsSection() {
     api
       .getMySavedTracks()
       .then((data) => {
-        setTracks(data?.items.map((item) => item.track) || []);
+        setTracks(data?.items.map((item) => item?.track) || []);
         setError(null);
       })
       .catch((e) => {
@@ -509,7 +508,7 @@ function SavedSongsSection() {
 }
 function SavedAlbumsSection() {
   const { api } = useAuth();
-  const [albums, setAlbums] = useState<SpotifyAlbum[]>([]);
+  const [albums, setAlbums] = useState<z.infer<typeof SpotifyAlbum>[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
@@ -524,7 +523,7 @@ function SavedAlbumsSection() {
     api
       .getMySavedAlbums()
       .then((data) => {
-        setAlbums(data?.items.map((item) => item.album) || []);
+        setAlbums(data?.items.map((item) => item?.album) || []);
         setError(null);
       })
       .catch((e) => {

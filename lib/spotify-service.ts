@@ -54,7 +54,11 @@ class SpotifyService {
     this.player = new window.Spotify.Player({
       name: "Pulse Web Player",
       getOAuthToken: (cb: (token: string) => void) => {
-        cb(this.accessToken!);
+        if (!this.accessToken) {
+          console.error("Spotify access token not found");
+          return;
+        }
+        cb(this.accessToken);
       },
     });
 

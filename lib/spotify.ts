@@ -1,19 +1,19 @@
 import { z } from "zod";
 import {
-  SpotifyAlbumSchema,
-  SpotifyArtistSchema,
+  SpotifyAlbum,
+  SpotifyArtist,
   SpotifyPaging,
-  SpotifyPlaylistSchema,
-  SpotifySimplifiedPlaylistSchema,
-  SpotifySavedAlbumSchema,
-  SpotifySavedTrackSchema,
-  SpotifyTrackSchema,
-  SpotifyUserSchema,
+  SpotifyPlaylist,
+  SpotifySimplifiedPlaylist,
+  SpotifySavedAlbum,
+  SpotifySavedTrack,
+  SpotifyTrack,
+  SpotifyUser,
 } from "@/lib/zod-schemas";
 
 const BASE_URL = "https://api.spotify.com/v1";
 
-export const TimeRangeSchema = z.enum([
+export const TimeRange = z.enum([
   "short_term",
   "medium_term",
   "long_term",
@@ -71,39 +71,52 @@ export class SpotifyAPI {
     }
   }
 
+  private async batchRequest<T>(
+    ids: string[],
+    requestFn: (chunk: string[]) => Promise<T>,
+    chunkSize = 50,
+  ): Promise<T[]> {
+    const promises: Promise<T>[] = [];
+    for (let i = 0; i < ids.length; i += chunkSize) {
+      const chunk = ids.slice(i, i + chunkSize);
+      promises.push(requestFn(chunk));
+    }
+    return Promise.all(promises);
+  }
+
   async getMe() {
-    return this.fetch("/me", {}, SpotifyUserSchema);
+    return this.fetch("/me", {}, SpotifyUser);
   }
 
   async getMyPlaylists(limit = 50) {
     return this.fetch(
       `/me/playlists?limit=${limit}`,
       {},
-      SpotifyPaging(SpotifySimplifiedPlaylistSchema),
+      SpotifyPaging(SpotifySimplifiedPlaylist),
     );
   }
 
   async getPlaylist(playlistId: string) {
-    return this.fetch(`/playlists/${playlistId}`, {}, SpotifyPlaylistSchema);
+    return this.fetch(`/playlists/${playlistId}`, {}, SpotifyPlaylist);
   }
 
   async getMyTopArtists(
-    timeRange: z.infer<typeof TimeRangeSchema> = "medium_term",
+    timeRange: z.infer<typeof TimeRange> = "medium_term",
   ) {
     return this.fetch(
       `/me/top/artists?time_range=${timeRange}`,
       {},
-      SpotifyPaging(SpotifyArtistSchema),
+      SpotifyPaging(SpotifyArtist),
     );
   }
 
   async getMyTopTracks(
-    timeRange: z.infer<typeof TimeRangeSchema> = "medium_term",
+    timeRange: z.infer<typeof TimeRange> = "medium_term",
   ) {
     return this.fetch(
       `/me/top/tracks?time_range=${timeRange}`,
       {},
-      SpotifyPaging(SpotifyTrackSchema),
+      SpotifyPaging(SpotifyTrack),
     );
   }
 
@@ -111,7 +124,7 @@ export class SpotifyAPI {
     return this.fetch(
       `/me/tracks?limit=${limit}`,
       {},
-      SpotifyPaging(SpotifySavedTrackSchema),
+      SpotifyPaging(SpotifySavedTrack),
     );
   }
 
@@ -119,19 +132,19 @@ export class SpotifyAPI {
     return this.fetch(
       `/me/albums?limit=${limit}`,
       {},
-      SpotifyPaging(SpotifySavedAlbumSchema),
+      SpotifyPaging(SpotifySavedAlbum),
     );
   }
 
   async getArtist(artistId: string) {
-    return this.fetch(`/artists/${artistId}`, {}, SpotifyArtistSchema);
+    return this.fetch(`/artists/${artistId}`, {}, SpotifyArtist);
   }
 
   async getArtistTopTracks(artistId: string) {
     return this.fetch(
       `/artists/${artistId}/top-tracks?market=US`,
       {},
-      z.object({ tracks: z.array(SpotifyTrackSchema) }),
+      z.object({ tracks: z.array(SpotifyTrack) }),
     );
   }
 
@@ -139,16 +152,16 @@ export class SpotifyAPI {
     return this.fetch(
       `/artists/${artistId}/related-artists`,
       {},
-      z.object({ artists: z.array(SpotifyArtistSchema) }),
+      z.object({ artists: z.array(SpotifyArtist) }),
     );
   }
 
   async getAlbum(albumId: string) {
-    return this.fetch(`/albums/${albumId}`, {}, SpotifyAlbumSchema);
+    return this.fetch(`/albums/${albumId}`, {}, SpotifyAlbum);
   }
 
   async getTrack(trackId: string) {
-    return this.fetch(`/tracks/${trackId}`, {}, SpotifyTrackSchema);
+    return this.fetch(`/tracks/${trackId}`, {}, SpotifyTrack);
   }
 
   async getRecommendations(seed: {
@@ -160,7 +173,7 @@ export class SpotifyAPI {
     return this.fetch(
       `/recommendations?${params.toString()}`,
       {},
-      z.object({ tracks: z.array(SpotifyTrackSchema) }),
+      z.object({ tracks: z.array(SpotifyTrack) }),
     );
   }
 
@@ -173,10 +186,10 @@ export class SpotifyAPI {
       `/search?${params.toString()}`,
       {},
       z.object({
-        tracks: SpotifyPaging(SpotifyTrackSchema).optional(),
-        artists: SpotifyPaging(SpotifyArtistSchema).optional(),
-        albums: SpotifyPaging(SpotifyAlbumSchema).optional(),
-        playlists: SpotifyPaging(SpotifySimplifiedPlaylistSchema).optional(),
+        tracks: SpotifyPaging(SpotifyTrack).optional(),
+        artists: SpotifyPaging(SpotifyArtist).optional(),
+        albums: SpotifyPaging(SpotifyAlbum).optional(),
+        playlists: SpotifyPaging(SpotifySimplifiedPlaylist).optional(),
       }),
     );
   }
@@ -206,7 +219,7 @@ export class SpotifyAPI {
         method: "POST",
         body: JSON.stringify({ name }),
       },
-      SpotifySimplifiedPlaylistSchema,
+      SpotifySimplifiedPlaylist,
     );
   }
 
@@ -215,43 +228,53 @@ export class SpotifyAPI {
   }
 
   async checkSavedAlbums(albumIds: string[]) {
-    const params = new URLSearchParams({ ids: albumIds.join(",") });
-    return this.fetch(
-      `/me/albums/contains?${params.toString()}`,
-      {},
-      z.array(z.boolean()),
-    );
+    const results = await this.batchRequest(albumIds, (chunk) => {
+      const params = new URLSearchParams({ ids: chunk.join(",") });
+      return this.fetch(
+        `/me/albums/contains?${params.toString()}`,
+        {},
+        z.array(z.boolean()),
+      );
+    });
+    return results.flat();
   }
 
   async saveAlbums(albumIds: string[]) {
-    return this.fetch(
-      `/me/albums`,
-      {
-        method: "PUT",
-        body: JSON.stringify({ ids: albumIds }),
-      },
-      z.null(),
+    await this.batchRequest(albumIds, (chunk) =>
+      this.fetch(
+        `/me/albums`,
+        {
+          method: "PUT",
+          body: JSON.stringify({ ids: chunk }),
+        },
+        z.null(),
+      ),
     );
   }
 
   async removeSavedAlbums(albumIds: string[]) {
-    return this.fetch(
-      `/me/albums`,
-      {
-        method: "DELETE",
-        body: JSON.stringify({ ids: albumIds }),
-      },
-      z.null(),
+    await this.batchRequest(albumIds, (chunk) =>
+      this.fetch(
+        `/me/albums`,
+        {
+          method: "DELETE",
+          body: JSON.stringify({ ids: chunk }),
+        },
+        z.null(),
+      ),
     );
   }
 
-  async checkPlaylistFollowed(playlistId: string, userId: string) {
-    const params = new URLSearchParams({ ids: userId });
-    return this.fetch(
-      `/playlists/${playlistId}/followers/contains?${params.toString()}`,
-      {},
-      z.array(z.boolean()),
-    );
+  async checkPlaylistFollowed(playlistId: string, userIds: string[]) {
+    const results = await this.batchRequest(userIds, (chunk) => {
+      const params = new URLSearchParams({ ids: chunk.join(",") });
+      return this.fetch(
+        `/playlists/${playlistId}/followers/contains?${params.toString()}`,
+        {},
+        z.array(z.boolean()),
+      );
+    });
+    return results.flat();
   }
 
   async followPlaylist(playlistId: string) {
@@ -259,6 +282,7 @@ export class SpotifyAPI {
       `/playlists/${playlistId}/followers`,
       {
         method: "PUT",
+        body: JSON.stringify({ public: false }),
       },
       z.null(),
     );
@@ -275,67 +299,81 @@ export class SpotifyAPI {
   }
 
   async checkFollowingArtists(artistIds: string[]) {
-    const params = new URLSearchParams({
-      type: "artist",
-      ids: artistIds.join(","),
+    const results = await this.batchRequest(artistIds, (chunk) => {
+      const params = new URLSearchParams({
+        type: "artist",
+        ids: chunk.join(","),
+      });
+      return this.fetch(
+        `/me/following/contains?${params.toString()}`,
+        {},
+        z.array(z.boolean()),
+      );
     });
-    return this.fetch(
-      `/me/following/contains?${params.toString()}`,
-      {},
-      z.array(z.boolean()),
-    );
+    return results.flat();
   }
 
   async followArtists(artistIds: string[]) {
-    return this.fetch(
-      `/me/following?type=artist`,
-      {
-        method: "PUT",
-        body: JSON.stringify({ ids: artistIds }),
-      },
-      z.null(),
+    await this.batchRequest(artistIds, (chunk) =>
+      this.fetch(
+        `/me/following?type=artist`,
+        {
+          method: "PUT",
+          body: JSON.stringify({ ids: chunk }),
+        },
+        z.null(),
+      ),
     );
   }
 
   async unfollowArtists(artistIds: string[]) {
-    return this.fetch(
-      `/me/following?type=artist`,
-      {
-        method: "DELETE",
-        body: JSON.stringify({ ids: artistIds }),
-      },
-      z.null(),
+    await this.batchRequest(artistIds, (chunk) =>
+      this.fetch(
+        `/me/following?type=artist`,
+        {
+          method: "DELETE",
+          body: JSON.stringify({ ids: chunk }),
+        },
+        z.null(),
+      ),
     );
   }
 
   async checkSavedTracks(trackIds: string[]) {
-    const params = new URLSearchParams({ ids: trackIds.join(",") });
-    return this.fetch(
-      `/me/tracks/contains?${params.toString()}`,
-      {},
-      z.array(z.boolean()),
-    );
+    const results = await this.batchRequest(trackIds, (chunk) => {
+      const params = new URLSearchParams({ ids: chunk.join(",") });
+      return this.fetch(
+        `/me/tracks/contains?${params.toString()}`,
+        {},
+        z.array(z.boolean()),
+      );
+    });
+    return results.flat();
   }
 
   async saveTracks(trackIds: string[]) {
-    return this.fetch(
-      `/me/tracks`,
-      {
-        method: "PUT",
-        body: JSON.stringify({ ids: trackIds }),
-      },
-      z.null(),
+    await this.batchRequest(trackIds, (chunk) =>
+      this.fetch(
+        `/me/tracks`,
+        {
+          method: "PUT",
+          body: JSON.stringify({ ids: chunk }),
+        },
+        z.null(),
+      ),
     );
   }
 
   async removeSavedTracks(trackIds: string[]) {
-    return this.fetch(
-      `/me/tracks`,
-      {
-        method: "DELETE",
-        body: JSON.stringify({ ids: trackIds }),
-      },
-      z.null(),
+    await this.batchRequest(trackIds, (chunk) =>
+      this.fetch(
+        `/me/tracks`,
+        {
+          method: "DELETE",
+          body: JSON.stringify({ ids: chunk }),
+        },
+        z.null(),
+      ),
     );
   }
 }

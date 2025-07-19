@@ -13,14 +13,14 @@ import Loading from "@/components/loading";
 import SongListing from "@/components/song-listing";
 import { PlaylistHeader } from "@/components/playlist-header";
 import {
-  SpotifyPlaylist,
-  SpotifyTrack,
+  type SpotifyPlaylist,
   SpotifyPaging,
   SpotifyPlaylistTrack,
 } from "@/lib/zod-schemas";
+import type { z } from "zod";
 
 interface PlaylistTracksProps {
-  tracks: SpotifyTrack[];
+  tracks: z.infer<typeof SpotifyPlaylistTrack>[];
   totalTracks: number;
   isLoading: boolean;
   error: Error | null;
@@ -98,8 +98,8 @@ export default function PlaylistDetailPage({
 }: PlaylistDetailPageProps) {
   const { id } = use(params);
   const { api, user } = useAuth();
-  const [playlist, setPlaylist] = useState<SpotifyPlaylist | null>(null);
-  const [tracks, setTracks] = useState<SpotifyTrack[]>([]);
+  const [playlist, setPlaylist] = useState<z.infer<typeof SpotifyPlaylist> | null>(null);
+  const [tracks, setTracks] = useState<z.infer<typeof SpotifyPlaylistTrack>[]>([]);
   const [isOwner, setIsOwner] = useState(false);
   const [nextTracksUrl, setNextTracksUrl] = useState<string | null>(null);
 
@@ -239,7 +239,7 @@ export default function PlaylistDetailPage({
 
   // Calculate total duration
   const totalDuration = tracks.reduce(
-    (acc, track) => acc + (track.duration_ms || 0),
+    (acc, track) => acc + (track?.duration_ms || 0),
     0,
   );
   const totalMinutes = Math.floor(totalDuration / 60000);
@@ -252,13 +252,13 @@ export default function PlaylistDetailPage({
   return (
     <div className="min-h-screen">
       <PlaylistHeader
-        playlist={playlist!}
+        playlist={playlist}
         totalDuration={formattedDuration}
         dominantColor={color}
         isOwner={isOwner}
         isLiked={isLiked}
         isSaving={isSaving}
-        onPlay={() => play(playlist!.uri)}
+        onPlay={() => play(playlist?.uri || "")}
         onLikeToggle={async () => {
           if (isSaving) return;
           try {
@@ -277,7 +277,7 @@ export default function PlaylistDetailPage({
 
       <PlaylistTracks
         tracks={tracks}
-        totalTracks={playlist?.tracks.total || 0}
+      totalTracks={playlist?.tracks.total || 0}
         isLoading={fetchState.type === "tracks" && fetchState.loading}
         error={fetchState.type === "tracks" ? fetchState.error : null}
         onLoadMore={loadMoreTracks}

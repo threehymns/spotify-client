@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Play, PlusCircle } from "lucide-react";
 import { useSpotify } from "@/context/spotify-context";
 import { useAuth } from "@/context/auth-context";
+import { z } from "zod";
 import {
   SpotifyTrack,
   SpotifyArtist,
@@ -17,12 +18,13 @@ import {
   SpotifyPaging,
 } from "@/lib/zod-schemas";
 
-type SearchResultsState = {
-  tracks?: SpotifyPaging<SpotifyTrack>;
-  artists?: SpotifyPaging<SpotifyArtist>;
-  albums?: SpotifyPaging<SpotifyAlbum>;
-  playlists?: SpotifyPaging<SpotifyPlaylist>;
-};
+const SearchResultsState = z.object({
+  tracks: SpotifyPaging(SpotifyTrack).optional(),
+  artists: SpotifyPaging(SpotifyArtist).optional(),
+  albums: SpotifyPaging(SpotifyAlbum).optional(),
+  playlists: SpotifyPaging(SpotifyPlaylist).optional(),
+});
+
 
 type SearchResultsProps = {
   query: string;
@@ -31,7 +33,7 @@ type SearchResultsProps = {
 export default function SearchResults({ query }: SearchResultsProps) {
   const { play } = useSpotify();
   const { api } = useAuth();
-  const [results, setResults] = useState<SearchResultsState>({});
+  const [results, setResults] = useState<z.infer<typeof SearchResultsState>>({});
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("tracks");
 
@@ -86,7 +88,7 @@ export default function SearchResults({ query }: SearchResultsProps) {
   ) {
     return (
       <div className="text-center py-12 text-zinc-400">
-        No results found for "{query}"
+        No results found for &quot;{query}&quot;
       </div>
     );
   }
@@ -129,7 +131,7 @@ export default function SearchResults({ query }: SearchResultsProps) {
                     </Link>
                   </div>
                   <div className="text-sm text-zinc-400 truncate">
-                    {track.artists.map((a, i) => (
+                    {track.artists.map((a: z.infer<typeof SpotifyArtist>, i: number) => (
                       <span key={a.id}>
                         <Link
                           href={`/artists/${a.id}`}
@@ -164,27 +166,27 @@ export default function SearchResults({ query }: SearchResultsProps) {
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
           {results.artists?.items.map((artist) => (
             <Card
-              key={artist.id}
+              key={artist?.id}
               className="bg-zinc-900/50 hover:bg-zinc-800/50 transition-colors border-zinc-800"
             >
               <CardContent className="p-4 flex flex-col items-center text-center">
                 <div className="relative h-32 w-32 mb-4 rounded-full overflow-hidden">
                   <Image
                     src={
-                      artist.images[0]?.url ||
+                      artist?.images?.[0]?.url ||
                       "/placeholder.svg?height=128&width=128"
                     }
-                    alt={artist.name}
+                    alt={artist?.name || ""}
                     fill
                     className="object-cover"
                   />
                 </div>
                 <div className="font-medium truncate w-full">
                   <Link
-                    href={`/artists/${artist.id}`}
+                    href={`/artists/${artist?.id}`}
                     className="hover:underline"
                   >
-                    {artist.name}
+                    {artist?.name}
                   </Link>
                 </div>
                 <div className="text-sm text-zinc-400">Artist</div>
@@ -231,7 +233,7 @@ export default function SearchResults({ query }: SearchResultsProps) {
           {results.playlists?.items
             .filter((playlist) => playlist && playlist.id)
             .map((playlist) => (
-              <Card key={playlist.id} className="group">
+              <Card key={playlist?.id || ""} className="group">
                 <CardContent className="p-3 flex flex-col items-center">
                   <Image
                     src={
@@ -239,24 +241,24 @@ export default function SearchResults({ query }: SearchResultsProps) {
                         ? playlist.images[0]?.url
                         : "/placeholder.svg?height=128&width=128"
                     }
-                    alt={playlist?.name}
+                    alt={playlist?.name || ""}
                     width={128}
                     height={128}
                     className="rounded shadow mb-2 object-cover"
                   />
                   <div className="font-medium truncate w-full text-center">
                     <Link
-                      href={`/playlists/${playlist.id}`}
+                      href={`/playlists/${playlist?.id}`}
                       className="hover:underline"
                     >
-                      {playlist.name}
+                      {playlist?.name}
                     </Link>
                   </div>
                   <div className="text-xs text-zinc-400 text-center">
-                    By {playlist.owner?.display_name || playlist.owner?.id}
+                    By {playlist?.owner?.display_name || playlist?.owner?.id}
                   </div>
                   <div className="text-xs text-zinc-400 mt-1">
-                    {playlist.tracks?.total ?? 0} tracks
+                    {playlist?.tracks?.total ?? 0} tracks
                   </div>
                 </CardContent>
               </Card>

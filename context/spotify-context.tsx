@@ -93,7 +93,7 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
       },
       isPlaylistFollowed: async (playlistId: string) => {
         if (!api || !user) return false;
-        const results = await api.checkPlaylistFollowed(playlistId, user.id);
+        const results = await api.checkPlaylistFollowed(playlistId, [user.id]);
         return results[0];
       },
       toggleFollowPlaylist: async (playlistId: string, follow: boolean) => {

@@ -7,6 +7,8 @@ import { formatDuration } from "@/lib/time"
 import { Play, TrendingUp, Heart } from "lucide-react"
 import { useSpotify } from "@/context/spotify-context"
 import UniversalContextMenu from "./universal-context-menu"
+import type { z } from "zod"
+import type { SpotifyTrack } from "@/lib/zod-schemas"
 
 /**
  * SongListingProps: accepts an array of tracks. Each track should have id, name, uri, artists, and album fields.
@@ -14,16 +16,7 @@ import UniversalContextMenu from "./universal-context-menu"
  * Optionally, provide getAlbumHref to customize the album link.
  */
 export interface SongListingProps {
-  tracks: Array<{
-    id: string
-    name: string
-    uri: string
-    artists: { name: string; id?: string }[]
-    album: { id?: string; name: string; images: any[] }
-    popularity?: number // Spotify API: 0-100
-    playcount?: number // Sometimes available for some endpoints
-    duration_ms?: number // Duration in milliseconds
-  }>
+  tracks: z.infer<typeof SpotifyTrack>[]
   getAlbumHref?: (album: { id?: string }) => string
 }
 
@@ -35,7 +28,7 @@ export default function SongListing({ tracks, getAlbumHref }: SongListingProps) 
     let mounted = true;
     
     if (tracks && tracks.length > 0) {
-      const trackIds = tracks.map(track => track.id).filter(Boolean);
+      const trackIds = tracks.map(track => track?.id).filter(Boolean);
       if (trackIds.length > 0) {
         areTracksSaved(trackIds).then(statuses => {
           if (mounted) {
@@ -70,11 +63,11 @@ export default function SongListing({ tracks, getAlbumHref }: SongListingProps) 
       <div className="grid gap-1 mt-2">
         {tracks.map((track, i) => (
           <TrackRow
-            key={track.id}
+            key={track?.id || Math.random().toString()}
             track={track}
             index={i + 1}
             getAlbumHref={getAlbumHref}
-            isSaved={savedStatuses[track.id] || false}
+            isSaved={savedStatuses[track?.id || ""] || false}
             onToggleSave={(trackId, newSavedState) => {
               setSavedStatuses(prev => ({
                 ...prev,
@@ -100,7 +93,7 @@ function TrackRow({ track, getAlbumHref, isSaved, index, onToggleSave }: TrackRo
   const { play, toggleSaveTrack } = useSpotify();
 
   const handleToggleLike = async () => {
-    if (track.id) {
+    if (track?.id) {
       try {
         // Optimistically update UI through parent
         onToggleSave(track.id, !isSaved);
@@ -117,7 +110,7 @@ function TrackRow({ track, getAlbumHref, isSaved, index, onToggleSave }: TrackRo
 
   return (
     <div
-      key={track.id}
+      key={track?.id || Math.random().toString()}
       className="grid grid-cols-[48px_40px_1fr_auto] gap-4 items-center bg-zinc-800/30 hover:bg-zinc-800/60 p-3 rounded-md group transition-colors"
     >
       {/* Track number / Play button */}
@@ -128,7 +121,7 @@ function TrackRow({ track, getAlbumHref, isSaved, index, onToggleSave }: TrackRo
             size="icon"
             variant="ghost"
             className="absolute inset-0 opacity-0 group-hover:opacity-100 text-white h-8 w-8"
-            onClick={() => play(track.uri)}
+            onClick={() => play(track?.uri)}
           >
             <Play className="h-4 w-4" fill="currentColor" />
           </Button>
@@ -137,8 +130,8 @@ function TrackRow({ track, getAlbumHref, isSaved, index, onToggleSave }: TrackRo
       
       {/* Album artwork */}
       <img
-        src={track.album.images?.[0]?.url || "/placeholder.svg?height=40&width=40"}
-        alt={track.name}
+        src={track?.album?.images?.[0]?.url || "/placeholder.svg?height=40&width=40"}
+        alt={track?.album?.name}
         className="h-10 w-10 rounded object-cover"
         loading="lazy"
       />
@@ -146,17 +139,17 @@ function TrackRow({ track, getAlbumHref, isSaved, index, onToggleSave }: TrackRo
       {/* Track info */}
       <div className="min-w-0 flex flex-col justify-center">
         <div className="font-medium truncate">
-          <UniversalContextMenu type="track" id={track.id || ""} albumId={track.album.id || ""} artists={track.artists}>
+          <UniversalContextMenu type="track" id={track?.id || ""} albumId={track?.album?.id || ""} artists={track?.artists || []}>
             <Link
-              href={getAlbumHref ? getAlbumHref(track.album) : track.album.id ? `/albums/${track.album.id}` : "#"}
+              href={getAlbumHref ? getAlbumHref(track?.album) : track?.album?.id ? `/albums/${track?.album?.id}` : "#"}
               className="hover:underline"
             >
-              {track.name}
+              {track?.name}
             </Link>
           </UniversalContextMenu>
         </div>
         <div className="text-xs text-zinc-400 truncate">
-          {track.artists.map(({ id, name }, i) => (
+          {track?.artists?.map(({ id, name }: { id: string; name: string }, i: number) => (
             <React.Fragment key={id || name || i}>
               {id ? (
                 <UniversalContextMenu type="artist" id={id}>
@@ -167,11 +160,11 @@ function TrackRow({ track, getAlbumHref, isSaved, index, onToggleSave }: TrackRo
               ) : (
                 <span>{name}</span>
               )}
-              {i < track.artists.length - 1 && ', '}
+              {i < track?.artists?.length - 1 && ', '}
             </React.Fragment>
           ))}
-          {track.album && (
-            <span className="text-zinc-500"> • {track.album.name}</span>
+          {track?.album && (
+            <span className="text-zinc-500"> • {track?.album?.name}</span>
           )}
         </div>
       </div>
@@ -179,7 +172,7 @@ function TrackRow({ track, getAlbumHref, isSaved, index, onToggleSave }: TrackRo
       {/* Track metadata and Like button */}
       <div className="flex items-center gap-3 justify-end">
         {/* Like button */}
-        {track.id && (
+        {track?.id && (
           <Button
             size="icon"
             variant="ghost"
@@ -191,20 +184,20 @@ function TrackRow({ track, getAlbumHref, isSaved, index, onToggleSave }: TrackRo
           </Button>
         )}
         
-        {typeof track.playcount === 'number' && (
+        {typeof track?.playcount === 'number' && (
           <span className="text-xs text-zinc-400 tabular-nums whitespace-nowrap" title="Play count">
-            {track.playcount.toLocaleString()}
+            {track?.playcount?.toLocaleString()}
           </span>
         )}
-        {typeof track.popularity === 'number' && (
+        {typeof track?.popularity === 'number' && (
           <span className="flex items-center gap-1 text-xs text-zinc-400 whitespace-nowrap" title="Popularity (0-100)">
             <TrendingUp className="h-3.5 w-3.5" />
-            <span>{track.popularity}</span>
+            <span>{track?.popularity}</span>
           </span>
         )}
-        {typeof track.duration_ms === 'number' && (
+        {typeof track?.duration_ms === 'number' && (
           <span className="text-xs text-zinc-400 tabular-nums whitespace-nowrap" title="Duration">
-            {formatDuration(track.duration_ms)}
+            {formatDuration(track?.duration_ms)}
           </span>
         )}
       </div>

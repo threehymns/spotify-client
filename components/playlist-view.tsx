@@ -20,11 +20,12 @@ import { motion } from "motion/react";
 import { Play, Plus, ListMusic, Music, Clock, Music2Icon, Heart } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
 import type { SpotifyPlaylist } from "@/lib/zod-schemas";
+import type { z } from "zod";
 
 export default function PlaylistView() {
   const { play } = useSpotify();
   const { api, user } = useAuth();
-  const [playlists, setPlaylists] = useState<SpotifyPlaylist[]>([]);
+  const [playlists, setPlaylists] = useState<z.infer<typeof SpotifyPlaylist>[]>([]);
   const [loading, setLoading] = useState(true);
   const [newPlaylistName, setNewPlaylistName] = useState("");
   const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false);
@@ -43,7 +44,7 @@ export default function PlaylistView() {
           savedTracksPromise,
         ]);
 
-        const likedSongsPlaylist: SpotifyPlaylist = {
+        const likedSongsPlaylist: z.infer<typeof SpotifyPlaylist> = {
           id: "liked-songs",
           name: "Liked Songs",
           images: [{ url: "/liked-songs.png" }],

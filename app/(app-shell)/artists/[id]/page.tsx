@@ -104,9 +104,8 @@ export default function ArtistPage({
     async function fetchAlbums() {
       setAlbumsLoading(true);
       try {
-        const res = await api.getRecommendations({ seed_artists: id });
+        const res = await api?.getRecommendations({ seed_artists: id });
         if (!cancelled)
-          // @ts-ignore
           setAlbums(res?.tracks.map((t) => t.album) || []);
       } catch {
         if (!cancelled) setAlbums([]);

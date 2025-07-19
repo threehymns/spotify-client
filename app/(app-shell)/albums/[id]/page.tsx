@@ -12,7 +12,8 @@ import SongListing from "@/components/song-listing";
 import { motion } from "motion/react";
 import { useDominantColorWorker } from "@/hooks/useDominantColorWorker";
 import { useAuth } from "@/context/auth-context";
-import { SpotifyAlbum } from "@/lib/zod-schemas";
+import { SpotifyAlbum, SpotifyPlaylistTrack, SpotifyTrack } from "@/lib/zod-schemas";
+import { z } from "zod";
 
 export default function AlbumPage({
   params,
@@ -22,7 +23,7 @@ export default function AlbumPage({
   const { play, isAlbumSaved, toggleSaveAlbum } = useSpotify();
   const { id } = use(params);
   const { api } = useAuth();
-  const [album, setAlbum] = useState<SpotifyAlbum | null>(null);
+  const [album, setAlbum] = useState<z.infer<typeof SpotifyAlbum> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isLiked, setIsLiked] = useState(false);
@@ -34,7 +35,7 @@ export default function AlbumPage({
   const totalDuration = useMemo(() => {
     if (!album?.tracks?.items) return "0 min";
     const totalMs = album.tracks.items.reduce(
-      (acc: number, track: any) => acc + (track.duration_ms || 0),
+      (acc: number, track: z.infer<typeof SpotifyTrack>) => acc + (track.duration_ms || 0),
       0,
     );
     const minutes = Math.floor(totalMs / 60000);
@@ -49,7 +50,7 @@ export default function AlbumPage({
       setLoading(true);
       setError(null);
       try {
-        const data = await api.getAlbum(id);
+        const data = await api?.getAlbum(id);
         if (!cancelled) {
           setAlbum(data);
           const saved = await isAlbumSaved(data.id);
@@ -57,6 +58,7 @@ export default function AlbumPage({
         }
       } catch (e) {
         if (!cancelled) {
+          console.error("Failed to load album:", e);
           setAlbum(null);
           setError("Failed to load album.");
         }
@@ -151,7 +153,7 @@ export default function AlbumPage({
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.2 }}
               >
-                {album.artists?.map((a: any, i: number) => (
+                {album.artists?.map((a: z.infer<typeof SpotifyTrack>, i: number) => (
                   <span key={a.id}>
                     <Link
                       href={`/artists/${a.id}`}
@@ -274,7 +276,7 @@ export default function AlbumPage({
           <ScrollArea className="p-4 max-h-[calc(100vh-400px)]">
             <SongListing
               tracks={
-                album.tracks?.items?.map((track: any) => ({
+                album.tracks?.items?.map((track: z.infer<typeof SpotifyTrack>) => ({
                   id: track.id,
                   name: track.name,
                   uri: track.uri,
