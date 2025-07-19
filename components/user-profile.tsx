@@ -1,28 +1,22 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import Image from "next/image"
-import { Card, CardContent } from "@/components/ui/card"
-import { getUserProfile } from "@/lib/spotify-api"
+import { useState, useEffect } from "react";
+import Image from "next/image";
+import { Card, CardContent } from "@/components/ui/card";
+import { useAuth } from "@/context/auth-context";
+import { SpotifyUser } from "@/lib/zod-schemas";
 
 export default function UserProfile() {
-  const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const { user } = useAuth();
+  const [profile, setProfile] = useState<SpotifyUser | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchUserProfile = async () => {
-      try {
-        const data = await getUserProfile()
-        setUser(data)
-      } catch (error) {
-        console.error("Failed to fetch user profile:", error)
-      } finally {
-        setLoading(false)
-      }
+    if (user) {
+      setProfile(user);
+      setLoading(false);
     }
-
-    fetchUserProfile()
-  }, [])
+  }, [user]);
 
   if (loading) {
     return (
@@ -37,11 +31,11 @@ export default function UserProfile() {
           </div>
         </CardContent>
       </Card>
-    )
+    );
   }
 
-  if (!user) {
-    return null
+  if (!profile) {
+    return null;
   }
 
   return (
@@ -49,17 +43,21 @@ export default function UserProfile() {
       <CardContent className="p-3 flex items-center">
         <div className="relative h-10 w-10 mr-3">
           <Image
-            src={user.images[0]?.url || "/placeholder.svg?height=40&width=40"}
-            alt={user.display_name}
+            src={
+              profile.images?.[0]?.url || "/placeholder.svg?height=40&width=40"
+            }
+            alt={profile.display_name}
             fill
             className="object-cover rounded-full"
           />
         </div>
         <div>
-          <div className="font-medium truncate">{user.display_name}</div>
-          <div className="text-xs text-zinc-400">{user.product === "premium" ? "Premium" : "Free"}</div>
+          <div className="font-medium truncate">{profile.display_name}</div>
+          <div className="text-xs text-zinc-400">
+            {profile.product === "premium" ? "Premium" : "Free"}
+          </div>
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }

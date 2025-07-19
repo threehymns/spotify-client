@@ -1,59 +1,56 @@
-"use client"
+"use client";
 
-import React, { useEffect, useState, useMemo, useRef } from "react"
-import { getUserSavedAlbums, type SavedAlbum } from "@/lib/spotify-api"
-import { AlbumCard } from "@/components/album-card"
-import { GalleryVerticalEnd, LibraryIcon, MusicIcon } from "lucide-react"
-import { motion } from "motion/react"
+import React, { useEffect, useState, useMemo } from "react";
+import { AlbumCard } from "@/components/album-card";
+import { GalleryVerticalEnd, LibraryIcon, MusicIcon } from "lucide-react";
+import { motion } from "motion/react";
+import { useAuth } from "@/context/auth-context";
+import { SpotifySavedAlbum } from "@/lib/zod-schemas";
+import Loading from "@/components/loading";
 
 export default function AlbumsPage() {
-  const [albums, setAlbums] = useState<SavedAlbum[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(false)
-  const controllerRef = useRef<AbortController | null>(null)
+  const { api } = useAuth();
+  const [albums, setAlbums] = useState<SpotifySavedAlbum[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
-    controllerRef.current = new AbortController()
-    const { signal } = controllerRef.current
+    if (!api) return;
 
     async function fetchAlbums() {
       try {
-        const data = await getUserSavedAlbums(signal)
-        if (!signal.aborted) {
-          setAlbums(data.items ?? [])
-        }
+        const data = await api.getMySavedAlbums();
+        setAlbums(data.items);
       } catch (e) {
-        if (!signal.aborted && (!(e instanceof Error) || e.name !== 'AbortError')) {
-          setError(true)
-          setAlbums([])
-        }
+        setError(true);
+        setAlbums([]);
       } finally {
-        if (!signal.aborted) {
-          setLoading(false)
-        }
+        setLoading(false);
       }
     }
-    fetchAlbums()
+    fetchAlbums();
+  }, [api]);
 
-    return () => {
-      controllerRef.current = null
-    }
-  }, [])
-
-  const container = useMemo(() => ({
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.05,
+  const container = useMemo(
+    () => ({
+      hidden: { opacity: 0 },
+      show: {
+        opacity: 1,
+        transition: {
+          staggerChildren: 0.05,
+        },
       },
-    },
-  }), []);
+    }),
+    [],
+  );
 
-  const item = useMemo(() => ({
-    hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0 },
-  }), []);
+  const item = useMemo(
+    () => ({
+      hidden: { opacity: 0, y: 20 },
+      show: { opacity: 1, y: 0 },
+    }),
+    [],
+  );
 
   return (
     <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
@@ -69,10 +66,7 @@ export default function AlbumsPage() {
 
       {loading ? (
         <div className="flex flex-col items-center justify-center py-24">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-500 mb-4"></div>
-          <p className="text-zinc-400 animate-pulse">
-            Loading your collection...
-          </p>
+          <Loading />
         </div>
       ) : error ? (
         <div className="flex flex-col items-center justify-center py-24 text-center">
@@ -102,19 +96,17 @@ export default function AlbumsPage() {
           initial="hidden"
           animate="show"
         >
-          {albums.map(
-            ({ album }: SavedAlbum) => (
-              <motion.div key={album.id} variants={item}>
-                <AlbumCard
-                  album={album}
-                  href={`/albums/${album.id}`}
-                  className="h-full transition-transform duration-300 hover:scale-[1.02] backdrop-blur-sm hover:backdrop-blur-md shadow-md rounded-md overflow-hidden"
-                />
-              </motion.div>
-            ),
-          )}
+          {albums.map((album) => (
+            <motion.div key={album.album.id} variants={item}>
+              <AlbumCard
+                album={album.album}
+                href={`/albums/${album.album.id}`}
+                className="h-full transition-transform duration-300 hover:scale-[1.02] backdrop-blur-sm hover:backdrop-blur-md shadow-md rounded-md overflow-hidden"
+              />
+            </motion.div>
+          ))}
         </motion.div>
       )}
     </div>
-  )
+  );
 }

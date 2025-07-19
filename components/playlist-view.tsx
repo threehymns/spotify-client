@@ -1,14 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { SpotifyPlaylist } from "@/lib/spotify-api";
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -16,26 +16,25 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useSpotify } from "@/context/spotify-context";
-import {
-  getUserPlaylists,
-  createPlaylist,
-  getPlaylistTracks,
-} from "@/lib/spotify-api";
 import { motion } from "motion/react";
 import { Play, Plus, ListMusic, Music, Clock } from "lucide-react";
+import { useAuth } from "@/context/auth-context";
+import { SpotifyPlaylist } from "@/lib/zod-schemas";
 
 export default function PlaylistView() {
   const { play } = useSpotify();
+  const { api, user } = useAuth();
   const [playlists, setPlaylists] = useState<SpotifyPlaylist[]>([]);
   const [loading, setLoading] = useState(true);
   const [newPlaylistName, setNewPlaylistName] = useState("");
   const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false);
 
   useEffect(() => {
+    if (!api) return;
     const fetchPlaylists = async () => {
       try {
-        const data = await getUserPlaylists();
-        setPlaylists(data.items as SpotifyPlaylist[]);
+        const data = await api.getMyPlaylists();
+        setPlaylists(data.items.filter(Boolean));
         setLoading(false);
       } catch (error) {
         console.error("Failed to fetch playlists:", error);
@@ -44,15 +43,15 @@ export default function PlaylistView() {
     };
 
     fetchPlaylists();
-  }, []);
+  }, [api]);
 
   const handleCreatePlaylist = async () => {
-    if (!newPlaylistName.trim()) return;
+    if (!newPlaylistName.trim() || !api || !user) return;
 
     setIsCreatingPlaylist(true);
     try {
-      const newPlaylist = await createPlaylist(newPlaylistName);
-      setPlaylists([...playlists, newPlaylist as SpotifyPlaylist]);
+      const newPlaylist = await api.createPlaylist(user.id, newPlaylistName);
+      setPlaylists([...playlists, newPlaylist]);
       setNewPlaylistName("");
     } catch (error) {
       console.error("Failed to create playlist:", error);
@@ -97,6 +96,7 @@ export default function PlaylistView() {
                 onChange={(e) => setNewPlaylistName(e.target.value)}
                 className="bg-zinc-800 border-zinc-700 focus:border-green-500 text-white"
               />
+              <DialogClose asChild>
               <Button
                 onClick={handleCreatePlaylist}
                 disabled={isCreatingPlaylist || !newPlaylistName.trim()}
@@ -104,6 +104,7 @@ export default function PlaylistView() {
               >
                 {isCreatingPlaylist ? "Creating..." : "Create Playlist"}
               </Button>
+            </DialogClose>
             </div>
           </DialogContent>
         </Dialog>
@@ -215,7 +216,7 @@ export default function PlaylistView() {
                           <div className="flex items-center text-xs text-zinc-400 space-x-2">
                             <span>{playlist.tracks.total} tracks</span>
                             <span className="w-1 h-1 rounded-full bg-zinc-700"></span>
-                            <span>By {playlist.owner.display_name}</span>
+                            <span>By {playlist.owner.display_name || playlist.owner.id}</span>
                           </div>
                         </CardContent>
                       </Card>

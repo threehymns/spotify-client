@@ -137,37 +137,34 @@ async function refreshAccessToken() {
   }
 }
 
+import { SpotifyAPI } from "./spotify";
+
 // Check if user is authenticated
 export async function checkAuth() {
-  const accessToken = await getAccessToken()
-  return !!accessToken
+  const accessToken = await getAccessToken();
+  return !!accessToken;
 }
 
 // Add a new function to check connection status
 export async function checkSpotifyConnection() {
   try {
-    const accessToken = await getAccessToken()
+    const accessToken = await getAccessToken();
     if (!accessToken) {
-      console.log("No access token available")
-      return false
+      console.log("No access token available");
+      return false;
     }
 
-    console.log("Testing Spotify API connection...")
-    const response = await fetch("https://api.spotify.com/v1/me", {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    })
+    console.log("Testing Spotify API connection...");
+    const authHeaders = new Headers({
+      Authorization: `Bearer ${accessToken}`,
+    });
+    const spotifyApi = new SpotifyAPI(authHeaders);
+    await spotifyApi.getMe();
 
-    if (!response.ok) {
-      console.error("Spotify API connection test failed:", await response.json().catch(() => "Could not parse error"))
-      return false
-    }
-
-    console.log("Spotify API connection successful")
-    return true
+    console.log("Spotify API connection successful");
+    return true;
   } catch (error) {
-    console.error("Error checking Spotify connection:", error)
-    return false
+    console.error("Error checking Spotify connection:", error);
+    return false;
   }
 }

@@ -1,25 +1,23 @@
 "use client";
-import { useEffect, useState, useCallback, use, memo, useRef } from "react";
+import { useEffect, useState, useCallback, use, memo } from "react";
 import { ListMusic, Clock } from "lucide-react";
-
-// Spotify API
-import {
-  getPlaylist,
-  getPlaylistTracks,
-  getUserProfile,
-  SPOTIFY_API_LIMITS,
-} from "@/lib/spotify-api";
-import type { SpotifyPlaylist, SpotifyTrack } from "@/lib/spotify-api";
 
 // Context and hooks
 import { useSpotify } from "@/context/spotify-context";
 import { useDominantColorWorker } from "@/hooks/useDominantColorWorker";
+import { useAuth } from "@/context/auth-context";
 
 // Components
 import { Button } from "@/components/ui/button";
 import Loading from "@/components/loading";
 import SongListing from "@/components/song-listing";
 import { PlaylistHeader } from "@/components/playlist-header";
+import {
+  SpotifyPlaylist,
+  SpotifyTrack,
+  SpotifyPaging,
+  SpotifyPlaylistTrack,
+} from "@/lib/zod-schemas";
 
 interface PlaylistTracksProps {
   tracks: SpotifyTrack[];
@@ -79,6 +77,7 @@ export const PlaylistTracks = memo(function PlaylistTracks({
 
         {tracks.length < totalTracks && !isLoading && (
           <button
+            type="button"
             onClick={onLoadMore}
             className="w-full mt-4 py-2 px-4 bg-green-500 hover:bg-green-600 text-white rounded-lg"
           >
@@ -98,112 +97,89 @@ export default function PlaylistDetailPage({
   params,
 }: PlaylistDetailPageProps) {
   const { id } = use(params);
+  const { api, user } = useAuth();
   const [playlist, setPlaylist] = useState<SpotifyPlaylist | null>(null);
   const [tracks, setTracks] = useState<SpotifyTrack[]>([]);
-  const [totalTracks, setTotalTracks] = useState(0);
   const [isOwner, setIsOwner] = useState(false);
-  const controllerRef = useRef<AbortController | null>(null);
-  
+  const [nextTracksUrl, setNextTracksUrl] = useState<string | null>(null);
+
   type FetchState = {
     loading: boolean;
     error: Error | null;
-    type: 'playlist' | 'tracks' | 'follow-status' | null;
+    type: "playlist" | "tracks" | "follow-status" | null;
   };
-  
+
   const [fetchState, setFetchState] = useState<FetchState>({
     loading: false,
     error: null,
-    type: null
+    type: null,
   });
 
-  const handleFetchError = useCallback((error: unknown, type: FetchState['type']) => {
-    console.error(`Failed to load ${type}:`, error);
-    setFetchState(prev => ({
-      ...prev,
-      loading: false,
-      error: error instanceof Error ? error : new Error(`Failed to load ${type}`),
-      type
-    }));
-  }, []);
+  const handleFetchError = useCallback(
+    (error: unknown, type: FetchState["type"]) => {
+      console.error(`Failed to load ${type}:`, error);
+      setFetchState((prev) => ({
+        ...prev,
+        loading: false,
+        error:
+          error instanceof Error
+            ? error
+            : new Error(`Failed to load ${type}`),
+        type,
+      }));
+    },
+    [],
+  );
 
-  const loadMoreTracks = useCallback(async (signal?: AbortSignal) => {
+  const loadMoreTracks = useCallback(async () => {
+    if (!nextTracksUrl || !api) return;
+
     try {
-      setFetchState({ loading: true, error: null, type: 'tracks' });
-
-      const tracksResponse = await getPlaylistTracks(
-        id,
-        SPOTIFY_API_LIMITS.PLAYLIST_ITEMS,
-        tracks.length,
-        signal
+      setFetchState({ loading: true, error: null, type: "tracks" });
+      const tracksResponse = await api.fetchUrl(
+        nextTracksUrl,
+        SpotifyPaging(SpotifyPlaylistTrack),
       );
-
-      setTracks((prevTracks) => {
-        const uniqueNewTracks = tracksResponse.items
-          .map((item: any) => item.track)
-          .filter(
-            (newTrack: SpotifyTrack) =>
-              !prevTracks.some(
-                (existingTrack) => existingTrack.id === newTrack.id
-              )
-          );
-
-        return [...prevTracks, ...uniqueNewTracks];
-      });
-      setTotalTracks(tracksResponse.total);
+      setTracks((prev) => [
+        ...prev,
+        ...tracksResponse.items
+          .map((item) => item?.track)
+          .filter(Boolean),
+      ]);
+      setNextTracksUrl(tracksResponse.next);
+      setFetchState({ loading: false, error: null, type: null });
     } catch (error) {
-      handleFetchError(error, 'tracks');
+      handleFetchError(error, "tracks");
     }
-  }, [id, tracks.length, handleFetchError]);
+  }, [nextTracksUrl, api, handleFetchError]);
+
   const { play } = useSpotify();
 
   // Load initial data
   useEffect(() => {
-    controllerRef.current = new AbortController();
-    const { signal } = controllerRef.current;
-    
+    if (!api || !user) return;
+
     const loadInitialData = async () => {
       try {
-        setFetchState({ loading: true, error: null, type: 'playlist' });
-        
-        // Load playlist and owner status together
-        const [playlistData, userProfile] = await Promise.all([
-          getPlaylist(id, signal),
-          getUserProfile(signal)
-        ]);
-        
-        if (signal.aborted) return;
-        
+        setFetchState({ loading: true, error: null, type: "playlist" });
+
+        const playlistData = await api.getPlaylist(id);
+
         setPlaylist(playlistData);
-        setTotalTracks(playlistData.tracks?.total || 0);
-        setIsOwner(playlistData.owner.id === userProfile.id);
-        
-        // Only load tracks if playlist was successfully loaded
-        if (playlistData.tracks?.total > 0) {
-          await loadMoreTracks(signal);
-        }
-        
-        if (!signal.aborted) {
-          setFetchState({ loading: false, error: null, type: null });
-        }
+        setTracks(
+          playlistData.tracks.items.map((item) => item?.track).filter(Boolean),
+        );
+        setNextTracksUrl(playlistData.tracks.next);
+        setIsOwner(playlistData.owner.id === user.id);
+
+        setFetchState({ loading: false, error: null, type: null });
       } catch (error) {
-        if (!signal.aborted) {
-          handleFetchError(error, 'playlist');
-        }
+        handleFetchError(error, "playlist");
       }
     };
 
     loadInitialData();
-    return () => {
-      if (controllerRef.current && !controllerRef.current.signal.aborted) {
-        try {
-          controllerRef.current.abort();
-        } catch (error) {
-          // Ignore abort errors
-        }
-      }
-      controllerRef.current = null;
-    };
-  }, [id, loadMoreTracks, handleFetchError]);
+  }, [id, api, user, handleFetchError]);
 
   // Extract dominant color from playlist image
   const imgUrl = playlist?.images?.[0]?.url;
@@ -216,60 +192,33 @@ export default function PlaylistDetailPage({
 
   // Load follow status only if not owner
   useEffect(() => {
-    controllerRef.current = new AbortController();
-    const { signal } = controllerRef.current;
-
     const loadFollowStatus = async () => {
-      if (!isOwner) {
+      if (id && !isOwner) {
         try {
-          setFetchState({ loading: true, error: null, type: 'follow-status' });
+          setFetchState({
+            loading: true,
+            error: null,
+            type: "follow-status",
+          });
           const followed = await isPlaylistFollowed(id);
-          if (!signal.aborted) {
-            setIsLiked(followed);
-          }
+          setIsLiked(followed);
         } catch (error) {
-          if (!signal.aborted) {
-            handleFetchError(error, 'follow-status');
-          }
+          handleFetchError(error, "follow-status");
         } finally {
-          if (!signal.aborted) {
-            setFetchState(prev => prev.type === 'follow-status' ?
-              { ...prev, loading: false } : prev);
-          }
+          setFetchState((prev) =>
+            prev.type === "follow-status"
+              ? { ...prev, loading: false }
+              : prev,
+          );
         }
       }
     };
 
     loadFollowStatus();
-    return () => {
-      if (controllerRef.current && !controllerRef.current.signal.aborted) {
-        try {
-          controllerRef.current.abort();
-        } catch (error) {
-          // Ignore abort errors
-        }
-      }
-      controllerRef.current = null;
-    };
   }, [id, isOwner, isPlaylistFollowed, handleFetchError]);
 
-  // Load initial follow status
-  useEffect(() => {
-    async function checkInitialLikeStatus() {
-      if (id && !isOwner) {
-        try {
-          const followed = await isPlaylistFollowed(id);
-          setIsLiked(followed);
-        } catch (error) {
-          console.error("Failed to load initial like status:", error);
-        }
-      }
-    }
-    checkInitialLikeStatus();
-  }, [id, isOwner, isPlaylistFollowed]);
-
   if (fetchState.loading && !playlist) return <Loading />;
-  if (fetchState.error && !playlist && fetchState.type === 'playlist')
+  if (fetchState.error && !playlist && fetchState.type === "playlist")
     return (
       <div className="max-w-5xl mx-auto p-8">
         <div className="bg-red-900/20 border border-red-900/50 rounded-lg p-6 text-red-400 text-center flex flex-col items-center">
@@ -291,11 +240,14 @@ export default function PlaylistDetailPage({
   // Calculate total duration
   const totalDuration = tracks.reduce(
     (acc, track) => acc + (track.duration_ms || 0),
-    0
+    0,
   );
   const totalMinutes = Math.floor(totalDuration / 60000);
   const totalHours = Math.floor(totalMinutes / 60);
-  const formattedDuration = totalHours > 0 ? `${totalHours} hr ${totalMinutes % 60} min` : `${totalMinutes} min`;
+  const formattedDuration =
+    totalHours > 0
+      ? `${totalHours} hr ${totalMinutes % 60} min`
+      : `${totalMinutes} min`;
 
   return (
     <div className="min-h-screen">
@@ -325,9 +277,9 @@ export default function PlaylistDetailPage({
 
       <PlaylistTracks
         tracks={tracks}
-        totalTracks={totalTracks}
-        isLoading={fetchState.type === 'tracks' && fetchState.loading}
-        error={fetchState.type === 'tracks' ? fetchState.error : null}
+        totalTracks={playlist?.tracks.total || 0}
+        isLoading={fetchState.type === "tracks" && fetchState.loading}
+        error={fetchState.type === "tracks" ? fetchState.error : null}
         onLoadMore={loadMoreTracks}
       />
     </div>

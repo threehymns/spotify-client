@@ -1,22 +1,28 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { useEffect, useState, use, useMemo } from "react"
-import { getAlbum, SpotifyAlbum } from "@/lib/spotify-api"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Play, Heart, Share2, Clock, MoreHorizontal, Disc } from "lucide-react"
-import Loading from "@/components/loading"
-import { useSpotify } from "@/context/spotify-context"
-import SongListing from "@/components/song-listing"
-import { motion } from "motion/react"
-import { useDominantColorWorker } from "@/hooks/useDominantColorWorker"
+import Link from "next/link";
+import { useEffect, useState, use, useMemo } from "react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Play, Heart, Share2, Clock, MoreHorizontal, Disc } from "lucide-react";
+import Loading from "@/components/loading";
+import { useSpotify } from "@/context/spotify-context";
+import SongListing from "@/components/song-listing";
+import { motion } from "motion/react";
+import { useDominantColorWorker } from "@/hooks/useDominantColorWorker";
+import { useAuth } from "@/context/auth-context";
+import { SpotifyAlbum } from "@/lib/zod-schemas";
 
-export default function AlbumPage({ params }: { params: Promise<{ id: string }> }) {
+export default function AlbumPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { play, isAlbumSaved, toggleSaveAlbum } = useSpotify();
   const { id } = use(params);
-  const [album, setAlbum] = useState<any>(null);
+  const { api } = useAuth();
+  const [album, setAlbum] = useState<SpotifyAlbum | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isLiked, setIsLiked] = useState(false);
@@ -26,20 +32,24 @@ export default function AlbumPage({ params }: { params: Promise<{ id: string }> 
 
   // Format duration
   const totalDuration = useMemo(() => {
-    if (!album?.tracks?.items) return '0 min';
-    const totalMs = album.tracks.items.reduce((acc: number, track: any) => acc + (track.duration_ms || 0), 0);
+    if (!album?.tracks?.items) return "0 min";
+    const totalMs = album.tracks.items.reduce(
+      (acc: number, track: any) => acc + (track.duration_ms || 0),
+      0,
+    );
     const minutes = Math.floor(totalMs / 60000);
     const hours = Math.floor(minutes / 60);
     return hours > 0 ? `${hours} hr ${minutes % 60} min` : `${minutes} min`;
   }, [album]);
 
   useEffect(() => {
+    if (!api) return;
     let cancelled = false;
     async function fetchAlbum() {
       setLoading(true);
       setError(null);
       try {
-        const data = await getAlbum(id) as SpotifyAlbum;
+        const data = await api.getAlbum(id);
         if (!cancelled) {
           setAlbum(data);
           const saved = await isAlbumSaved(data.id);
@@ -58,7 +68,7 @@ export default function AlbumPage({ params }: { params: Promise<{ id: string }> 
     return () => {
       cancelled = true;
     };
-  }, [id, isAlbumSaved]);
+  }, [id, isAlbumSaved, api]);
 
   if (loading) return <Loading />;
 
@@ -83,7 +93,9 @@ export default function AlbumPage({ params }: { params: Promise<{ id: string }> 
     );
 
   // Get album release year
-  const releaseYear = album?.release_date ? new Date(album.release_date).getFullYear() : null;
+  const releaseYear = album?.release_date
+    ? new Date(album.release_date).getFullYear()
+    : null;
 
   return (
     <div className="min-h-screen">
@@ -119,10 +131,13 @@ export default function AlbumPage({ params }: { params: Promise<{ id: string }> 
               />
             </motion.div>
             <div className="flex flex-col items-center md:items-start text-center md:text-left">
-              <Badge variant="outline" className="mb-2 uppercase text-xs font-semibold tracking-wide text-white bg-white/10 backdrop-blur-sm border-white/20 px-3 py-1">
+              <Badge
+                variant="outline"
+                className="mb-2 uppercase text-xs font-semibold tracking-wide text-white bg-white/10 backdrop-blur-sm border-white/20 px-3 py-1"
+              >
                 <Disc className="w-3 h-3 mr-1" /> Album
               </Badge>
-              <motion.h1 
+              <motion.h1
                 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-white mb-3 tracking-tight"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -130,7 +145,7 @@ export default function AlbumPage({ params }: { params: Promise<{ id: string }> 
               >
                 {album.name}
               </motion.h1>
-              <motion.div 
+              <motion.div
                 className="text-zinc-300 mb-3 max-w-2xl"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -138,20 +153,32 @@ export default function AlbumPage({ params }: { params: Promise<{ id: string }> 
               >
                 {album.artists?.map((a: any, i: number) => (
                   <span key={a.id}>
-                    <Link href={`/artists/${a.id}`} className="hover:underline text-white font-medium">{a.name}</Link>
-                    {i < album.artists.length - 1 && ', '}
+                    <Link
+                      href={`/artists/${a.id}`}
+                      className="hover:underline text-white font-medium"
+                    >
+                      {a.name}
+                    </Link>
+                    {i < album.artists.length - 1 && ", "}
                   </span>
                 ))}
-                {album.label && <span className="ml-2 text-zinc-400">• {album.label}</span>}
-                {releaseYear && <span className="ml-2 text-zinc-400">• {releaseYear}</span>}
+                {album.label && (
+                  <span className="ml-2 text-zinc-400">• {album.label}</span>
+                )}
+                {releaseYear && (
+                  <span className="ml-2 text-zinc-400">• {releaseYear}</span>
+                )}
               </motion.div>
-              <motion.div 
+              <motion.div
                 className="text-zinc-400 text-sm flex items-center flex-wrap gap-x-2 mb-4 justify-center md:justify-start"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.5, delay: 0.3 }}
               >
-                <span>{album.total_tracks || album.tracks?.items?.length || 0} tracks</span>
+                <span>
+                  {album.total_tracks || album.tracks?.items?.length || 0}{" "}
+                  tracks
+                </span>
                 {album.tracks?.items?.length > 0 && (
                   <>
                     <span>•</span>
@@ -159,19 +186,23 @@ export default function AlbumPage({ params }: { params: Promise<{ id: string }> 
                   </>
                 )}
               </motion.div>
-              <motion.div 
+              <motion.div
                 className="flex items-center gap-3 flex-wrap justify-center md:justify-start"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.4 }}
               >
-                <Button 
-                  onClick={() => play(album.uri)} 
-                  size="lg" 
+                <Button
+                  onClick={() => play(album.uri)}
+                  size="lg"
                   className="bg-green-500 hover:bg-green-600 text-white px-8"
                   style={{
-                    backgroundColor: color ? `rgb(${color[0]},${color[1]},${color[2]})` : '',
-                    borderColor: color ? `rgb(${color[0]},${color[1]},${color[2]})` : '',
+                    backgroundColor: color
+                      ? `rgb(${color[0]},${color[1]},${color[2]})`
+                      : "",
+                    borderColor: color
+                      ? `rgb(${color[0]},${color[1]},${color[2]})`
+                      : "",
                   }}
                 >
                   <Play className="h-5 w-5 mr-2 fill-current" /> Play
@@ -185,12 +216,15 @@ export default function AlbumPage({ params }: { params: Promise<{ id: string }> 
                     setSaving(true);
                     try {
                       await toggleSaveAlbum(id, !isLiked);
-                      setIsLiked(prev => !prev);
+                      setIsLiked((prev) => !prev);
                     } catch {
                       try {
                         setIsLiked(await isAlbumSaved(id));
                       } catch (error) {
-                        console.error('Failed to check album save status:', error);
+                        console.error(
+                          "Failed to check album save status:",
+                          error,
+                        );
                         // Keep the previous state if we can't verify
                       }
                     } finally {
@@ -198,12 +232,23 @@ export default function AlbumPage({ params }: { params: Promise<{ id: string }> 
                     }
                   }}
                 >
-                  <Heart className="h-5 w-5" fill={isLiked ? "currentColor" : "none"} />
+                  <Heart
+                    className="h-5 w-5"
+                    fill={isLiked ? "currentColor" : "none"}
+                  />
                 </Button>
-                <Button variant="outline" size="icon" className="rounded-full border-zinc-700 text-zinc-300 hover:text-white hover:bg-zinc-800">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="rounded-full border-zinc-700 text-zinc-300 hover:text-white hover:bg-zinc-800"
+                >
                   <Share2 className="h-5 w-5" />
                 </Button>
-                <Button variant="outline" size="icon" className="rounded-full border-zinc-700 text-zinc-300 hover:text-white hover:bg-zinc-800">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="rounded-full border-zinc-700 text-zinc-300 hover:text-white hover:bg-zinc-800"
+                >
                   <MoreHorizontal className="h-5 w-5" />
                 </Button>
               </motion.div>
@@ -211,7 +256,7 @@ export default function AlbumPage({ params }: { params: Promise<{ id: string }> 
           </div>
         </div>
       </div>
-      
+
       {/* Track listing */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-zinc-900/20 backdrop-blur-sm rounded-xl overflow-hidden border border-zinc-800">
@@ -227,17 +272,21 @@ export default function AlbumPage({ params }: { params: Promise<{ id: string }> 
             </Button>
           </div>
           <ScrollArea className="p-4 max-h-[calc(100vh-400px)]">
-            <SongListing tracks={album.tracks?.items?.map((track: any) => ({
-              id: track.id,
-              name: track.name,
-              uri: track.uri,
-              duration_ms: track.duration_ms,
-              artists: track.artists,
-              album: album
-            })) || []} />
+            <SongListing
+              tracks={
+                album.tracks?.items?.map((track: any) => ({
+                  id: track.id,
+                  name: track.name,
+                  uri: track.uri,
+                  duration_ms: track.duration_ms,
+                  artists: track.artists,
+                  album: album,
+                })) || []
+              }
+            />
           </ScrollArea>
         </div>
       </div>
     </div>
-  )
+  );
 }

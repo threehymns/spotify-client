@@ -1,18 +1,9 @@
 "use client";
 
 import React, { useEffect, useState, use } from "react";
-import {
-  getArtist,
-  getArtistTopTracks,
-  getArtistAlbums,
-  SpotifyTrack,
-  SpotifyPaging,
-  SpotifyAlbum,
-} from "@/lib/spotify-api";
 import { useSpotify } from "@/context/spotify-context";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import SongListing from "@/components/song-listing";
 import { AlbumCard } from "@/components/album-card";
@@ -25,11 +16,16 @@ import {
   Award,
   AlbumIcon,
   MoreHorizontal,
-  Loader2,
 } from "lucide-react";
 import Loading from "@/components/loading";
 import { useDominantColorWorker } from "@/hooks/useDominantColorWorker";
 import { motion } from "motion/react";
+import { useAuth } from "@/context/auth-context";
+import {
+  SpotifyArtist,
+  SpotifyTrack,
+  SpotifyAlbum,
+} from "@/lib/zod-schemas";
 
 export default function ArtistPage({
   params,
@@ -37,11 +33,12 @@ export default function ArtistPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const [artist, setArtist] = useState<any>(null);
+  const { api } = useAuth();
+  const [artist, setArtist] = useState<SpotifyArtist | null>(null);
   const [loading, setLoading] = useState(true);
-  const [topTracks, setTopTracks] = useState<any[] | null>(null);
+  const [topTracks, setTopTracks] = useState<SpotifyTrack[] | null>(null);
   const [tracksLoading, setTracksLoading] = useState(true);
-  const [albums, setAlbums] = useState<any[] | null>(null);
+  const [albums, setAlbums] = useState<SpotifyAlbum[] | null>(null);
   const [albumsLoading, setAlbumsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { play, isArtistFollowed, toggleFollowArtist } = useSpotify();
@@ -53,12 +50,13 @@ export default function ArtistPage({
   const { color } = useDominantColorWorker(id, imgUrl);
 
   useEffect(() => {
+    if (!api) return;
     let cancelled = false;
     async function fetchArtistData() {
       setLoading(true);
       setError(null);
       try {
-        const artistData = await getArtist(id);
+        const artistData = await api.getArtist(id);
         if (!cancelled) {
           setArtist(artistData);
           // Fetch initial following status after artist data is loaded
@@ -78,14 +76,15 @@ export default function ArtistPage({
     return () => {
       cancelled = true;
     };
-  }, [id, isArtistFollowed]);
+  }, [id, isArtistFollowed, api]);
 
   useEffect(() => {
+    if (!api) return;
     let cancelled = false;
     async function fetchTopTracks() {
       setTracksLoading(true);
       try {
-        const res = await getArtistTopTracks(id) as { tracks: SpotifyTrack[] };
+        const res = await api.getArtistTopTracks(id);
         if (!cancelled) setTopTracks(res?.tracks || []);
       } catch {
         if (!cancelled) setTopTracks([]);
@@ -97,19 +96,18 @@ export default function ArtistPage({
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, api]);
 
   useEffect(() => {
+    if (!api) return;
     let cancelled = false;
     async function fetchAlbums() {
       setAlbumsLoading(true);
       try {
-        const res = await getArtistAlbums(id, {
-          include_groups: "album,single",
-          market: "from_token",
-          limit: "12",
-        }) as SpotifyPaging<SpotifyAlbum>;
-        if (!cancelled) setAlbums(res?.items || []);
+        const res = await api.getRecommendations({ seed_artists: id });
+        if (!cancelled)
+          // @ts-ignore
+          setAlbums(res?.tracks.map((t) => t.album) || []);
       } catch {
         if (!cancelled) setAlbums([]);
       } finally {
@@ -120,7 +118,7 @@ export default function ArtistPage({
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, api]);
 
   if (loading) return <Loading />;
 
@@ -244,17 +242,27 @@ export default function ArtistPage({
                 <Button
                   variant="outline"
                   size="icon"
-                  className={`rounded-full border-zinc-700 ${isFollowing ? 'text-green-500 hover:text-green-500' : 'text-zinc-300 hover:text-white'} hover:bg-zinc-800`}
+                  className={`rounded-full border-zinc-700 ${
+                    isFollowing
+                      ? "text-green-500 hover:text-green-500"
+                      : "text-zinc-300 hover:text-white"
+                  } hover:bg-zinc-800`}
                   disabled={isSaving}
                   onClick={async () => {
                     setIsSaving(true);
                     try {
-                      console.log("Toggling artist follow status:", { id, isFollowing });
+                      console.log("Toggling artist follow status:", {
+                        id,
+                        isFollowing,
+                      });
                       await toggleFollowArtist(id, !isFollowing);
                       // Update local state based on the toggle result
-                      setIsFollowing(prev => !prev);
+                      setIsFollowing((prev) => !prev);
                     } catch (error) {
-                      console.error("Failed to toggle artist follow status:", error);
+                      console.error(
+                        "Failed to toggle artist follow status:",
+                        error,
+                      );
                       // If toggle failed, refresh the status to show the current state from the API
                       const currentStatus = await isArtistFollowed(id);
                       setIsFollowing(currentStatus);
@@ -263,7 +271,10 @@ export default function ArtistPage({
                     }
                   }}
                 >
-                  <Heart className="h-5 w-5" fill={isFollowing ? "currentColor" : "none"} />
+                  <Heart
+                    className="h-5 w-5"
+                    fill={isFollowing ? "currentColor" : "none"}
+                  />
                 </Button>
                 <Button
                   variant="outline"

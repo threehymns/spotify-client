@@ -1,32 +1,34 @@
-"use client"
+"use client";
 
-import React, { useEffect, useState } from "react"
-import { getUserSavedTracks } from "@/lib/spotify-api"
-import { LibraryIcon, MusicIcon, Music2Icon } from "lucide-react"
-import { motion } from "motion/react"
-import SongListing from "@/components/song-listing"
-import { SavedTrack, SpotifyTrack } from "@/lib/spotify-api"
+import React, { useEffect, useState } from "react";
+import { LibraryIcon, MusicIcon, Music2Icon } from "lucide-react";
+import { motion } from "motion/react";
+import SongListing from "@/components/song-listing";
+import { useAuth } from "@/context/auth-context";
+import { SpotifyTrack } from "@/lib/zod-schemas";
 
 export default function SongsPage() {
-  const [tracks, setTracks] = useState<SavedTrack[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(false)
+  const { api } = useAuth();
+  const [tracks, setTracks] = useState<SpotifyTrack[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
+    if (!api) return;
     async function fetchTracks() {
       try {
-        const data = await getUserSavedTracks()
-        setTracks(data?.items || [])
+        const data = await api.getMySavedTracks();
+        setTracks(data?.items.map((item) => item.track) || []);
       } catch (e) {
-        console.error("Saved tracks fetch error:", e)
-        setError(true)
-        setTracks([])
+        console.error("Saved tracks fetch error:", e);
+        setError(true);
+        setTracks([]);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
     }
-    fetchTracks()
-  }, [])
+    fetchTracks();
+  }, [api]);
 
   const container = {
     hidden: { opacity: 0 },
@@ -36,12 +38,12 @@ export default function SongsPage() {
         staggerChildren: 0.05,
       },
     },
-  }
+  };
 
   const item = {
     hidden: { opacity: 0, y: 20 },
     show: { opacity: 1, y: 0 },
-  }
+  };
 
   return (
     <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
@@ -84,16 +86,12 @@ export default function SongsPage() {
           </p>
         </div>
       ) : (
-        <motion.div
-          variants={container}
-          initial="hidden"
-          animate="show"
-        >
+        <motion.div variants={container} initial="hidden" animate="show">
           <motion.div variants={item}>
-            <SongListing tracks={tracks.map((item) => item.track)} />
+            <SongListing tracks={tracks} />
           </motion.div>
         </motion.div>
       )}
     </div>
-  )
+  );
 }

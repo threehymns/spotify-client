@@ -10,38 +10,31 @@ import {
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAuth } from "@/context/auth-context";
-import SongListing from "@/components/song-listing";
 import { motion } from "motion/react";
 import { useSpotify } from "@/context/spotify-context";
 import { useEffect, useState } from "react";
-import {
-  getUserPlaylists,
-  getUserSavedTracks,
-  getUserSavedAlbums,
-  getUserProfile,
-} from "@/lib/spotify-api";
 import UniversalContextMenu from "@/components/universal-context-menu";
 import Loading from "@/components/loading";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import {
+  SpotifyPlaylist,
+  SpotifyTrack,
+  SpotifyAlbum,
+  SpotifyUser,
+} from "@/lib/zod-schemas";
 
 function ProfileOverview() {
-  const [profile, setProfile] = useState<any>(null);
+  const { user } = useAuth();
+  const [profile, setProfile] = useState<SpotifyUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!user) return;
     setLoading(true);
-    getUserProfile()
-      .then((data) => {
-        setProfile(data);
-        setError(null);
-      })
-      .catch((e) => {
-        console.error("Profile fetch error:", e);
-        setError("Failed to load profile.");
-      })
-      .finally(() => setLoading(false));
-  }, []);
+    setProfile(user);
+    setLoading(false);
+  }, [user]);
 
   const profileImageUrl = profile?.images?.[0]?.url;
 
@@ -150,7 +143,8 @@ function ProfileOverview() {
 
 function PlaylistsSection() {
   const { play } = useSpotify();
-  const [playlists, setPlaylists] = useState<any[]>([]);
+  const { api } = useAuth();
+  const [playlists, setPlaylists] = useState<SpotifyPlaylist[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
@@ -159,8 +153,10 @@ function PlaylistsSection() {
   const INITIAL_DISPLAY_COUNT = 6;
 
   useEffect(() => {
+    if (!api) return;
     setLoading(true);
-    getUserPlaylists()
+    api
+      .getMyPlaylists()
       .then((data) => {
         setPlaylists(data?.items || []);
         setError(null);
@@ -170,7 +166,7 @@ function PlaylistsSection() {
         setError("Failed to load playlists.");
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [api]);
 
   const visiblePlaylists = showAll
     ? playlists
@@ -235,7 +231,7 @@ function PlaylistsSection() {
           <>
             {/* Grid for playlists */}
             <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-5">
-              {visiblePlaylists.map((playlist: any, idx: number) => (
+              {visiblePlaylists.map((playlist, idx) => (
                 <UniversalContextMenu
                   type="playlist"
                   id={playlist.id}
@@ -345,16 +341,19 @@ function PlaylistsSection() {
 }
 
 function SavedSongsSection() {
-  const [tracks, setTracks] = useState<any[]>([]);
+  const { api } = useAuth();
+  const [tracks, setTracks] = useState<SpotifyTrack[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { play } = useSpotify();
 
   useEffect(() => {
+    if (!api) return;
     setLoading(true);
-    getUserSavedTracks()
+    api
+      .getMySavedTracks()
       .then((data) => {
-        setTracks(data?.items?.map((item: any) => item.track) || []);
+        setTracks(data?.items.map((item) => item.track) || []);
         setError(null);
       })
       .catch((e) => {
@@ -362,7 +361,7 @@ function SavedSongsSection() {
         setError("Failed to load saved songs.");
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [api]);
 
   const playAll = () => {
     // Consider playing the collection URI if available, or the first track
@@ -435,7 +434,7 @@ function SavedSongsSection() {
             <ScrollArea className="w-full max-h-[350px] md:max-h-[400px]">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-3 p-4">
                 {/* Display limited tracks initially, maybe 6-9 */}
-                {tracks.slice(0, 9).map((track: any, idx: number) => (
+                {tracks.slice(0, 9).map((track, idx) => (
                   <motion.div
                     key={track.id || idx} // Use idx as fallback key if id is missing
                     initial={{ opacity: 0, y: 10 }}
@@ -509,7 +508,8 @@ function SavedSongsSection() {
   );
 }
 function SavedAlbumsSection() {
-  const [albums, setAlbums] = useState<any[]>([]);
+  const { api } = useAuth();
+  const [albums, setAlbums] = useState<SpotifyAlbum[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
@@ -519,10 +519,12 @@ function SavedAlbumsSection() {
   const INITIAL_DISPLAY_COUNT = 6;
 
   useEffect(() => {
+    if (!api) return;
     setLoading(true);
-    getUserSavedAlbums()
+    api
+      .getMySavedAlbums()
       .then((data) => {
-        setAlbums(data?.items?.map((item: any) => item.album) || []);
+        setAlbums(data?.items.map((item) => item.album) || []);
         setError(null);
       })
       .catch((e) => {
@@ -530,7 +532,7 @@ function SavedAlbumsSection() {
         setError("Failed to load saved albums.");
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [api]);
 
   const visibleAlbums = showAll
     ? albums
@@ -575,7 +577,7 @@ function SavedAlbumsSection() {
           <>
             {/* Grid for albums */}
             <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-5">
-              {visibleAlbums.map((album: any, idx: number) => (
+              {visibleAlbums.map((album, idx) => (
                 <UniversalContextMenu
                   type="album"
                   id={album.id}

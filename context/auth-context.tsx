@@ -1,8 +1,17 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  ReactNode,
+} from "react";
 import { useRouter } from "next/navigation";
 import { checkAuth, checkSpotifyConnection } from "@/lib/auth-helpers";
+import { SpotifyUser } from "@/lib/zod-schemas";
+import { SpotifyAPI } from "@/lib/spotify";
+import { getAccessToken } from "@/lib/auth-helpers";
 
 interface ConnectionStatus {
   connected: boolean;
@@ -14,6 +23,8 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   connectionStatus: ConnectionStatus;
+  user: SpotifyUser | null;
+  api: SpotifyAPI | null;
   refreshConnection: () => void;
   logout: () => void;
 }
@@ -30,6 +41,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState<SpotifyUser | null>(null);
+  const [api, setApi] = useState<SpotifyAPI | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>({
     connected: false,
     checking: true,
@@ -37,8 +50,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   const checkLocalTokens = () => {
-    const accessToken = typeof window !== "undefined" && localStorage.getItem("spotify_access_token");
-    const refreshToken = typeof window !== "undefined" && localStorage.getItem("spotify_refresh_token");
+    const accessToken =
+      typeof window !== "undefined" &&
+      localStorage.getItem("spotify_access_token");
+    const refreshToken =
+      typeof window !== "undefined" &&
+      localStorage.getItem("spotify_refresh_token");
     return !!(accessToken && refreshToken);
   };
 
@@ -73,7 +90,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setConnectionStatus({
         connected,
         checking: false,
-        error: connected ? null : "Could not connect to Spotify API. Please check your credentials.",
+        error: connected
+          ? null
+          : "Could not connect to Spotify API. Please check your credentials.",
       });
     } catch (error: any) {
       setConnectionStatus({
@@ -98,12 +117,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line
   }, [router]);
 
+  useEffect(() => {
+    const initApi = async () => {
+      const accessToken = await getAccessToken();
+      if (accessToken) {
+        const authHeaders = new Headers({
+          Authorization: `Bearer ${accessToken}`,
+        });
+        const newApi = new SpotifyAPI(authHeaders);
+        setApi(newApi);
+        newApi.getMe().then(setUser);
+      } else {
+        setApi(null);
+        setUser(null);
+      }
+    };
+
+    if (isAuthenticated) {
+      initApi();
+    }
+  }, [isAuthenticated]);
+
   return (
     <AuthContext.Provider
       value={{
         isAuthenticated,
         isLoading,
         connectionStatus,
+        user,
+        api,
         refreshConnection,
         logout,
       }}
