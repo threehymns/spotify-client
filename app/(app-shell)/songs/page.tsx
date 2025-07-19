@@ -1,97 +1,61 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { LibraryIcon, MusicIcon, Music2Icon } from "lucide-react";
-import { motion } from "motion/react";
-import SongListing from "@/components/song-listing";
 import { useAuth } from "@/context/auth-context";
-import { SpotifyTrack } from "@/lib/zod-schemas";
+import type { SpotifyTrack } from "@/lib/zod-schemas";
+import SongListing from "@/components/song-listing";
+import { PlaylistHeader } from "@/components/playlist-header";
 
-export default function SongsPage() {
+
+export default function SavedSongsPage() {
   const { api } = useAuth();
   const [tracks, setTracks] = useState<SpotifyTrack[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
 
   useEffect(() => {
     if (!api) return;
-    async function fetchTracks() {
+    const fetchSavedTracks = async () => {
       try {
+        setLoading(true);
         const data = await api.getMySavedTracks();
-        setTracks(data?.items.map((item) => item.track) || []);
-      } catch (e) {
-        console.error("Saved tracks fetch error:", e);
-        setError(true);
-        setTracks([]);
+        setTracks(data.items.map((item) => item.track));
+      } catch (error) {
+        console.error("Failed to fetch saved tracks:", error);
       } finally {
         setLoading(false);
       }
-    }
-    fetchTracks();
+    };
+    fetchSavedTracks();
   }, [api]);
 
-  const container = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.05,
-      },
-    },
-  };
-
-  const item = {
-    hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0 },
+  const playlist = {
+    name: "Liked Songs",
+    description: "Your saved tracks from Spotify.",
+    images: [{ url: "/liked-songs.png" }],
+    owner: { display_name: "You" },
+    followers: { total: 0 },
   };
 
   return (
     <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-      <div className="mb-8 flex items-center gap-3">
-        <div className="bg-gradient-to-br from-emerald-500 to-blue-600 p-3 rounded-xl shadow-lg">
-          <Music2Icon className="h-8 w-8 text-white" />
-        </div>
-        <div>
-          <h1 className="text-3xl font-bold text-white">Your Saved Songs</h1>
-          <p className="text-zinc-400 mt-1">Your liked songs from Spotify</p>
-        </div>
+      <PlaylistHeader
+        playlist={playlist}
+        isOwner={true}
+        isLiked={false}
+        isSaving={false}
+        onPlay={() => {}}
+        onLikeToggle={async () => {}}
+        totalDuration=""
+      />
+      <div className="mt-8">
+        {loading ? (
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
+          </div>
+        ) : (
+          <SongListing tracks={tracks} />
+        )}
       </div>
-
-      {loading ? (
-        <div className="flex flex-col items-center justify-center py-24">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-500 mb-4"></div>
-          <p className="text-zinc-400 animate-pulse">
-            Loading your collection...
-          </p>
-        </div>
-      ) : error ? (
-        <div className="flex flex-col items-center justify-center py-24 text-center">
-          <MusicIcon className="h-16 w-16 text-zinc-700 mb-4" />
-          <h2 className="text-xl font-semibold text-white mb-2">
-            Unable to load songs
-          </h2>
-          <p className="text-zinc-400 max-w-md">
-            There was an error loading your saved songs. Please try again
-            later.
-          </p>
-        </div>
-      ) : tracks.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-24 text-center">
-          <LibraryIcon className="h-16 w-16 text-zinc-700 mb-4" />
-          <h2 className="text-xl font-semibold text-white mb-2">
-            No saved songs found
-          </h2>
-          <p className="text-zinc-400 max-w-md">
-            Start liking songs to see them in your library.
-          </p>
-        </div>
-      ) : (
-        <motion.div variants={container} initial="hidden" animate="show">
-          <motion.div variants={item}>
-            <SongListing tracks={tracks} />
-          </motion.div>
-        </motion.div>
-      )}
     </div>
   );
 }

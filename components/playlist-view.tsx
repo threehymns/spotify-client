@@ -17,9 +17,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { useSpotify } from "@/context/spotify-context";
 import { motion } from "motion/react";
-import { Play, Plus, ListMusic, Music, Clock } from "lucide-react";
+import { Play, Plus, ListMusic, Music, Clock, Music2Icon, Heart } from "lucide-react";
 import { useAuth } from "@/context/auth-context";
-import { SpotifyPlaylist } from "@/lib/zod-schemas";
+import type { SpotifyPlaylist } from "@/lib/zod-schemas";
 
 export default function PlaylistView() {
   const { play } = useSpotify();
@@ -30,20 +30,40 @@ export default function PlaylistView() {
   const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false);
 
   useEffect(() => {
-    if (!api) return;
-    const fetchPlaylists = async () => {
+    if (!api || !user) return;
+
+    const fetchPlaylistsAndLikedSongs = async () => {
       try {
-        const data = await api.getMyPlaylists();
-        setPlaylists(data.items.filter(Boolean));
-        setLoading(false);
+        setLoading(true);
+        const playlistsPromise = api.getMyPlaylists();
+        const savedTracksPromise = api.getMySavedTracks();
+
+        const [playlistsData, savedTracksData] = await Promise.all([
+          playlistsPromise,
+          savedTracksPromise,
+        ]);
+
+        const likedSongsPlaylist: SpotifyPlaylist = {
+          id: "liked-songs",
+          name: "Liked Songs",
+          images: [{ url: "/liked-songs.png" }],
+          owner: { display_name: user.display_name, id: user.id },
+          tracks: { total: savedTracksData.total },
+        };
+
+        setPlaylists([
+          likedSongsPlaylist,
+          ...playlistsData.items.filter(Boolean),
+        ]);
       } catch (error) {
-        console.error("Failed to fetch playlists:", error);
+        console.error("Failed to fetch playlists or liked songs:", error);
+      } finally {
         setLoading(false);
       }
     };
 
-    fetchPlaylists();
-  }, [api]);
+    fetchPlaylistsAndLikedSongs();
+  }, [api, user]);
 
   const handleCreatePlaylist = async () => {
     if (!newPlaylistName.trim() || !api || !user) return;
@@ -154,6 +174,7 @@ export default function PlaylistView() {
       ) : (
         <ScrollArea className="px-1 py-2">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
+            
             {loading ? (
               <div className="col-span-full text-center py-8">
                 <Clock className="h-6 w-6 mx-auto mb-2 text-zinc-400 animate-spin" />
@@ -167,60 +188,60 @@ export default function PlaylistView() {
                     key={playlist.id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: index * 0.05 }}
+                    transition={{ duration: 0.3, delay: (index + 1) * 0.05 }}
                     className="group"
                   >
-                    <Link href={`/playlists/${playlist.id}`}>
-                      <Card className="bg-zinc-900/50 hover:bg-zinc-800/70 transition-all duration-300 border-zinc-800/50 overflow-hidden h-full group-hover:shadow-lg group-hover:shadow-purple-500/5 hover:border-zinc-700/80">
-                        <div className="aspect-square relative overflow-hidden">
-                          <div className="absolute inset-0 flex items-center justify-center bg-zinc-900 z-0">
-                            <Music className="h-1/3 w-1/3 text-zinc-800" />
-                          </div>
-                          <motion.div
-                            layoutId={`playlist-cover-${playlist.id}`}
-                            className="absolute inset-0 z-10"
-                          >
-                            <Image
-                              src={
-                                playlist.images?.[0]?.url ||
-                                "/placeholder.svg?height=300&width=300"
-                              }
-                              alt={playlist.name}
-                              fill
-                              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                              className="object-cover group-hover:scale-105 transition-transform duration-500"
-                            />
-                          </motion.div>
-                          <div className="absolute inset-0 bg-gradient-to-b from-black/0 to-black/80 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                            <div className="absolute bottom-3 right-3">
-                              <Button
-                                size="icon"
-                                className="rounded-full bg-green-500 hover:bg-green-600 text-white shadow-lg"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  play(playlist.uri);
-                                }}
-                              >
-                                <Play
-                                  className="h-5 w-5 ml-0.5"
-                                  fill="currentColor"
-                                />
-                              </Button>
-                            </div>
+                    <Link href={playlist.id === 'liked-songs' ? '/songs' : `/playlists/${playlist.id}`}>
+                    <Card className="bg-zinc-900/50 hover:bg-zinc-800/70 transition-all duration-300 border-zinc-800/50 overflow-hidden h-full group-hover:shadow-lg group-hover:shadow-purple-500/5 hover:border-zinc-700/80">
+                      <div className="aspect-square relative overflow-hidden">
+                        <div className="absolute inset-0 flex items-center justify-center bg-zinc-900 z-0">
+                          <Music className="h-1/3 w-1/3 text-zinc-800" />
+                        </div>
+                        <motion.div
+                          layoutId={`playlist-cover-${playlist.id}`}
+                          className="absolute inset-0 z-10"
+                        >
+                          <Image
+                            src={
+                              playlist.images?.[0]?.url ||
+                              "/placeholder.svg?height=300&width=300"
+                            }
+                            alt={playlist.name}
+                            fill
+                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                            className="object-cover group-hover:scale-105 transition-transform duration-500"
+                          />
+                        </motion.div>
+                        <div className="absolute inset-0 bg-gradient-to-b from-black/0 to-black/80 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                          <div className="absolute bottom-3 right-3">
+                            <Button
+                              size="icon"
+                              className="rounded-full bg-green-500 hover:bg-green-600 text-white shadow-lg"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                play(playlist.uri);
+                              }}
+                            >
+                              <Play
+                                className="h-5 w-5 ml-0.5"
+                                fill="currentColor"
+                              />
+                            </Button>
                           </div>
                         </div>
-                        <CardContent className="p-4">
-                          <h3 className="font-semibold text-white line-clamp-1 mb-1 group-hover:text-green-400 transition-colors duration-300">
-                            {playlist.name}
-                          </h3>
-                          <div className="flex items-center text-xs text-zinc-400 space-x-2">
-                            <span>{playlist.tracks.total} tracks</span>
-                            <span className="w-1 h-1 rounded-full bg-zinc-700"></span>
-                            <span>By {playlist.owner.display_name || playlist.owner.id}</span>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </Link>
+                      </div>
+                      <CardContent className="p-4">
+                        <h3 className="font-semibold text-white line-clamp-1 mb-1 group-hover:text-green-400 transition-colors duration-300">
+                          {playlist.name}
+                        </h3>
+                        <div className="flex items-center text-xs text-zinc-400 space-x-2">
+                          <span>{playlist.tracks.total} tracks</span>
+                          <span className="w-1 h-1 rounded-full bg-zinc-700"></span>
+                          <span>By {playlist.owner.display_name || playlist.owner.id}</span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
                   </motion.div>
                 );
               })

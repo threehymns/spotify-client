@@ -16,6 +16,9 @@ import DOMPurify from 'isomorphic-dompurify';
 
 // Utility function to decode and sanitize HTML entities
 const decodeAndSanitize = (text: string): string => {
+  if (typeof document === 'undefined') {
+    return DOMPurify.sanitize(text);
+  }
   const div = document.createElement('div');
   div.innerHTML = text;
   const decodedText = div.textContent || '';

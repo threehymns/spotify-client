@@ -34,7 +34,7 @@ export const SpotifyArtistSchema = z.object({
   images: z.array(SpotifyImageSchema).optional(),
 });
 
-// Define Album and Track schemas with z.lazy to handle the circular dependency.
+// Define Album and ; schemas with z.lazy to handle the circular dependency.
 export const SpotifyAlbumSchema: z.ZodType<any> = z.lazy(() =>
   z.object({
     id: z.string(),
